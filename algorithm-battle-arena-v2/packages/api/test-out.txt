@@ -1,0 +1,40 @@
+PASS src/auth/__tests__/auth.service.spec.ts (7.592 s)
+  AuthService
+    getPasswordSalt
+      √ should return a 16-byte buffer (16 ms)
+      √ should return different salts on each call (4 ms)
+    getPasswordHash
+      √ should return a 32-byte buffer (48 ms)
+      √ should produce the same hash for the same input (90 ms)
+      √ should produce different hashes for different passwords (93 ms)
+      √ should produce different hashes for different salts (95 ms)
+      √ should use combined salt = PasswordKey bytes + random salt (93 ms)
+    verifyPasswordHash
+      √ should return valid=true for correct password (90 ms)
+      √ should return valid=false for incorrect password (133 ms)
+      √ should detect fallback path and flag needsRehash (137 ms)
+    rehash
+      √ should return new hash and salt (46 ms)
+      √ should produce verifiable hash (93 ms)
+    createToken
+      √ should call jwtService.sign with correct payload for Student (3 ms)
+      √ should call jwtService.sign with correct payload for Teacher (2 ms)
+      √ should call jwtService.sign without userId for Admin (3 ms)
+    validateAdminCredentials
+      √ should return true for matching credentials (2 ms)
+      √ should return false for wrong email (2 ms)
+      √ should return false for wrong password (2 ms)
+    getEmailFromPayload
+      √ should extract email (1 ms)
+      √ should return null for missing email (2 ms)
+    getUserIdFromPayload
+      √ should extract studentId for Student role (2 ms)
+      √ should extract teacherId for Teacher role (2 ms)
+      √ should return null for Admin role (2 ms)
+
+Test Suites: 1 passed, 1 total
+Tests:       23 passed, 23 total
+Snapshots:   0 total
+Time:        8.113 s
+Ran all test suites matching auth.service.
+Force exiting Jest: Have you considered using `--detectOpenHandles` to detect async operations that kept running after all tests finished?
