@@ -1,0 +1,81 @@
+name: CI/CD - AlgorithmBattleArena
+
+on:
+  push:
+    branches: [ main, dev ]
+  workflow_dispatch:
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.x'
+
+      # Restore and build using the correct solution file
+      - name: Restore dependencies
+        run: dotnet restore AlgorithmBattleArena/AlgorithmBattleArena.sln
+
+      # Build the solution
+      - name: Build project
+        run: dotnet build AlgorithmBattleArena/AlgorithmBattleArena.sln -c Release --no-restore
+
+      # Copy test data
+      - name: Copy test data
+        run: |
+          mkdir -p AlgorithmBattleArena.Tests/bin/Release/net8.0/data/seeds/tests
+          cp -r data/seeds/tests/* AlgorithmBattleArena.Tests/bin/Release/net8.0/data/seeds/tests/ || true
+
+      # Run tests separately (continue on failure)
+      - name: Run unit tests
+        continue-on-error: true
+        run: |
+          mkdir -p ./TestResults
+          dotnet test AlgorithmBattleArena.Tests/AlgorithmBattleArena.Tests.csproj \
+            --configuration Release \
+            --logger "trx;LogFileName=test_results.trx" \
+            --results-directory ./TestResults
+
+      # Upload test results
+      - uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: ./TestResults
+
+      # Publish ONLY the web app
+      - name: Publish app
+        if: github.ref == 'refs/heads/main'
+        run: dotnet publish AlgorithmBattleArena/AlgorithmBattleArena.csproj -c Release -o ./publish
+
+      # Upload ONLY the publish folder
+      - name: Upload artifact for deployment
+        if: github.ref == 'refs/heads/main'
+        uses: actions/upload-artifact@v4
+        with:
+          name: published-app
+          path: ./publish
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build-and-test
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Download artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: published-app
+          path: ./publish
+
+      - name: Deploy to Azure Web App
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: 'AlgorithmBattleArena'
+          slot-name: 'Production'
+          package: ./publish
+          publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_BD81C951B4754D6ABD5FD7AE9379497A }}

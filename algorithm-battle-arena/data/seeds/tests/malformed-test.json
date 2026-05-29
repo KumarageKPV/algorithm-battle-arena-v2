@@ -1,0 +1,10 @@
+[
+  {
+    "description": "This problem is missing a title",
+    "difficultyLevel": "Easy",
+    "category": "Array",
+    "timeLimit": 1000,
+    "memoryLimit": 256,
+    "tags": "array"
+  }
+]

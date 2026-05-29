@@ -1,0 +1,23 @@
+[
+  {
+    "title": "Two Sum",
+    "description": "Given an array of integers nums and an integer target, return indices of the two numbers such that they add up to target.",
+    "difficultyLevel": "Easy",
+    "category": "Array",
+    "timeLimit": 1000,
+    "memoryLimit": 256,
+    "tags": "array,hash-table",
+    "testCases": [
+      {
+        "inputData": "[2,7,11,15]\n9",
+        "expectedOutput": "[0,1]",
+        "isSample": true
+      },
+      {
+        "inputData": "[3,2,4]\n6",
+        "expectedOutput": "[1,2]",
+        "isSample": false
+      }
+    ]
+  }
+]

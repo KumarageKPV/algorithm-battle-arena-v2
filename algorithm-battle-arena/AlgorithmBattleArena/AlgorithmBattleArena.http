@@ -1,0 +1,6 @@
+@AlgorithmBattleArena_HostAddress = http://localhost:5147
+
+GET {{AlgorithmBattleArena_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
