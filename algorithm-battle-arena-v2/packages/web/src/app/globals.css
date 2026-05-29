@@ -1,0 +1,51 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ─── Arena Font ──────────────────────────────────────────────────── */
+@font-face {
+  font-family: "MK4";
+  src: url("/fonts/MK4.TTF") format("truetype");
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* ─── Global Styles ───────────────────────────────────────────────── */
+:root {
+  color-scheme: dark;
+  --background: #0a0a0a;
+  --foreground: #ededed;
+}
+
+body {
+  color: var(--foreground);
+  background: var(--background);
+  font-family: system-ui, -apple-system, sans-serif;
+  min-height: 100vh;
+}
+
+/* ─── Scrollbar Styling ───────────────────────────────────────────── */
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-track {
+  background: rgba(20, 20, 20, 0.5);
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 107, 0, 0.4);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 107, 0, 0.6);
+}
+
+/* ─── Arena Background Utility ────────────────────────────────────── */
+@layer utilities {
+  .arena-bg {
+    background: linear-gradient(135deg, #111827 0%, #1a0000 50%, #000000 100%);
+  }
+  .text-balance {
+    text-wrap: balance;
+  }
+}
