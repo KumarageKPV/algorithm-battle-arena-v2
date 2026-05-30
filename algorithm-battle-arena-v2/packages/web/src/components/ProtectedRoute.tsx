@@ -10,17 +10,17 @@ interface ProtectedRouteProps {
 }
 
 /**
- * HOC that checks token and user role against allowedRoles.
+ * HOC that checks user role against allowedRoles.
  * Redirects to /login if unauthenticated, or to role-specific dashboard if wrong role.
  */
 export default function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) {
-  const { token, user, isLoading } = useAuth();
+  const { user, isLoading } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
     if (isLoading) return;
 
-    if (!token || !user) {
+    if (!user) {
       router.replace("/login");
       return;
     }
@@ -41,7 +41,7 @@ export default function ProtectedRoute({ children, allowedRoles }: ProtectedRout
           router.replace("/login");
       }
     }
-  }, [token, user, isLoading, allowedRoles, router]);
+  }, [user, isLoading, allowedRoles, router]);
 
   if (isLoading) {
     return (
@@ -51,9 +51,8 @@ export default function ProtectedRoute({ children, allowedRoles }: ProtectedRout
     );
   }
 
-  if (!token || !user) return null;
+  if (!user) return null;
   if (allowedRoles && !allowedRoles.includes(user.role)) return null;
 
   return <>{children}</>;
 }
-

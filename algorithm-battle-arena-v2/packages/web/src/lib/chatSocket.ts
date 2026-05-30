@@ -1,5 +1,4 @@
 import { io, Socket } from "socket.io-client";
-import { getToken } from "./tokenStorage";
 
 const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || "http://localhost:5000";
 
@@ -11,15 +10,12 @@ const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || "http://localhost:5000"
 class ChatSocketService {
   private socket: Socket | null = null;
 
-  start(token?: string) {
+  start() {
     if (this.socket?.connected) return;
 
-    const authToken = token || getToken();
-    if (!authToken) return;
-
     this.socket = io(`${SOCKET_URL}/chat`, {
-      auth: { token: authToken },
       transports: ["websocket"],
+      withCredentials: true,
       reconnection: true,
       reconnectionDelay: 2000,
       reconnectionAttempts: 10,
@@ -65,4 +61,3 @@ class ChatSocketService {
 }
 
 export const chatSocket = new ChatSocketService();
-

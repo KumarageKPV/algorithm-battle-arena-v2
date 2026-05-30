@@ -1,18 +1,8 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
-import { jwtDecode } from "jwt-decode";
-import { getToken, setToken, clearToken } from "@/lib/tokenStorage";
 import { authApi } from "@/lib/api";
 import { useRouter } from "next/navigation";
-
-interface JwtPayload {
-  email: string;
-  role: string;
-  studentId?: number;
-  teacherId?: number;
-  exp: number;
-}
 
 interface AuthUser {
   email: string;
@@ -31,73 +21,63 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
-function decodeUser(token: string): (AuthUser & { exp: number }) | null {
-  try {
-    const payload = jwtDecode<JwtPayload>(token);
-    return {
-      email: payload.email,
-      role: payload.role,
-      studentId: payload.studentId,
-      teacherId: payload.teacherId,
-      exp: payload.exp,
-    };
-  } catch {
-    return null;
-  }
-}
-
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [token, setTokenState] = useState<string | null>(null);
   const [user, setUser] = useState<AuthUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
 
-  // Hydrate from localStorage on mount
+  // Hydrate user from the backend profile (cookie-based auth)
   useEffect(() => {
-    const stored = getToken();
-    if (stored) {
-      const decoded = decodeUser(stored);
-      if (decoded && decoded.exp && decoded.exp * 1000 > Date.now()) {
-        setTokenState(stored);
-        setUser(decoded);
-      } else {
-        clearToken();
-      }
-    }
-    setIsLoading(false);
-  }, []);
-
-  // Listen for cross-tab and same-tab token changes
-  useEffect(() => {
-    const handler = () => {
-      const stored = getToken();
-      if (stored) {
-        setTokenState(stored);
-        setUser(decodeUser(stored));
-      } else {
+    let isMounted = true;
+    const loadProfile = async () => {
+      try {
+        const res = await authApi.getProfile();
+        if (!isMounted) return;
+        const data = res.data as any;
+        setUser({
+          email: data.email,
+          role: data.role,
+          studentId: data.role === "Student" ? data.id : undefined,
+          teacherId: data.role === "Teacher" ? data.id : undefined,
+        });
         setTokenState(null);
+      } catch {
+        if (!isMounted) return;
         setUser(null);
+        setTokenState(null);
+      } finally {
+        if (isMounted) setIsLoading(false);
       }
     };
-    window.addEventListener("token-changed", handler);
-    window.addEventListener("storage", handler);
+
+    loadProfile();
     return () => {
-      window.removeEventListener("token-changed", handler);
-      window.removeEventListener("storage", handler);
+      isMounted = false;
     };
   }, []);
 
   const login = useCallback(async (email: string, password: string): Promise<string> => {
     const res = await authApi.login(email, password);
-    const { token: newToken, role } = res.data;
-    setToken(newToken);
-    setTokenState(newToken);
-    setUser(decodeUser(newToken));
+    const role = res.data.role;
+    try {
+      const profile = await authApi.getProfile();
+      const data = profile.data as any;
+      setUser({
+        email: data.email,
+        role: data.role,
+        studentId: data.role === "Student" ? data.id : undefined,
+        teacherId: data.role === "Teacher" ? data.id : undefined,
+      });
+    } catch {
+      setUser(null);
+    }
+    setTokenState(null);
     return role;
   }, []);
 
   const logout = useCallback(() => {
-    clearToken();
+    authApi.logout().catch(() => undefined);
     setTokenState(null);
     setUser(null);
     router.push("/login");
@@ -115,4 +95,3 @@ export function useAuth() {
   if (!ctx) throw new Error("useAuth must be used within AuthProvider");
   return ctx;
 }
-

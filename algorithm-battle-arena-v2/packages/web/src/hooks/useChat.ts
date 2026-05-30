@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { chatSocket } from "@/lib/chatSocket";
 import { chatApi } from "@/lib/api";
-import { getToken } from "@/lib/tokenStorage";
 
 interface Message {
   messageId: number;
@@ -32,9 +31,8 @@ export function useChat() {
 
   // Start chat socket on mount
   useEffect(() => {
-    const token = getToken();
-    if (token && !chatSocket.isConnected) {
-      chatSocket.start(token);
+    if (!chatSocket.isConnected) {
+      chatSocket.start();
     }
 
     const unsub = chatSocket.onReceiveMessage((msg: Message) => {
@@ -102,4 +100,3 @@ export function useChat() {
     createFriendConversation,
   };
 }
-

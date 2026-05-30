@@ -1,5 +1,4 @@
 import axios from "axios";
-import { getToken } from "./tokenStorage";
 
 /**
  * Centralized Axios API client — mirrors v1 api.js.
@@ -11,16 +10,32 @@ const API_BASE = process.env.NEXT_PUBLIC_API_URL || "";
 const api = axios.create({
   baseURL: `${API_BASE}/api`,
   headers: { "Content-Type": "application/json" },
+  withCredentials: true,
 });
 
-// Attach JWT to every request
-api.interceptors.request.use((config) => {
-  const token = getToken();
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-});
+// Request interceptor reserved for future headers (cookie auth in use)
+api.interceptors.request.use((config) => config);
+
+api.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    const original = error.config as (typeof error.config & { _retry?: boolean });
+    const status = error.response?.status;
+    const url = (original?.url || "").toLowerCase();
+    const isAuthRoute = url.includes("/auth/login") || url.includes("/auth/refresh/token") || url.includes("/auth/logout");
+
+    if (status === 401 && !original?._retry && !isAuthRoute) {
+      original._retry = true;
+      try {
+        await api.get("/Auth/refresh/token");
+        return api(original);
+      } catch {
+        // fall through
+      }
+    }
+    return Promise.reject(error);
+  },
+);
 
 // ─── Auth ──────────────────────────────────────────────────────────
 export const authApi = {
@@ -29,6 +44,7 @@ export const authApi = {
   registerStudent: (data: any) => api.post("/Auth/register/student", data),
   registerTeacher: (data: any) => api.post("/Auth/register/teacher", data),
   refreshToken: () => api.get("/Auth/refresh/token"),
+  logout: () => api.post("/Auth/logout"),
   getProfile: () => api.get("/Auth/profile"),
 };
 
@@ -155,4 +171,3 @@ export const adminApi = {
 };
 
 export default api;
-

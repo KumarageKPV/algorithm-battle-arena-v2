@@ -7,7 +7,6 @@ import LobbyChatSidebar from "@/components/chat/LobbyChatSidebar";
 import { lobbiesApi, matchesApi } from "@/lib/api";
 import { lobbySocket } from "@/lib/lobbySocket";
 import { useAuth } from "@/lib/auth-context";
-import { getToken } from "@/lib/tokenStorage";
 import { Crown, Copy, LogOut, Play, Users, Settings, MessageCircle, XCircle } from "lucide-react";
 
 export default function LobbyInstancePage() {
@@ -25,8 +24,7 @@ export default function LobbyInstancePage() {
   useEffect(() => {
     if (!lobbyId) return;
     lobbiesApi.getById(parseInt(lobbyId)).then((r) => setLobby(r.data)).catch(() => {});
-    const token = getToken();
-    if (token) lobbySocket.start(token);
+    lobbySocket.start();
     lobbySocket.joinLobby(lobbyId);
     const u1 = lobbySocket.onLobbyUpdated((l) => setLobby(l));
     const u2 = lobbySocket.onMatchStarted((dto) => router.push("/match/" + dto.matchId));
