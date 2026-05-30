@@ -2,6 +2,7 @@
 import { ConfigService } from '@nestjs/config';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
+import type { Request } from 'express';
 
 /**
  * JWT Strategy — mirrors C# JWT validation in Program.cs.
@@ -15,8 +16,15 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     if (!secret) {
       throw new Error('JWT_SECRET is missing from environment variables!');
     }
+    const cookieExtractor = (req: Request): string | null => {
+      return (req?.cookies?.access_token as string | undefined) ?? null;
+    };
+
     super({
-      jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
+      jwtFromRequest: ExtractJwt.fromExtractors([
+        ExtractJwt.fromAuthHeaderAsBearerToken(),
+        cookieExtractor,
+      ]),
       ignoreExpiration: false,
       secretOrKey: secret,
       algorithms: ['HS512'],
@@ -35,4 +43,3 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     };
   }
 }
-

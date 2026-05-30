@@ -11,9 +11,13 @@
   UnauthorizedException,
   InternalServerErrorException,
   Logger,
+  Res,
 } from '@nestjs/common';
+import { Response } from 'express';
+import { ConfigService } from '@nestjs/config';
 import { AuthService } from './auth.service';
 import { AuthRepoService } from './auth-repo.service';
+import { RefreshTokenService } from './refresh-token.service';
 import { JwtAuthGuard } from './guards';
 import { UserForLoginDto, StudentForRegistrationDto, TeacherForRegistrationDto } from './dto/auth.dto';
 
@@ -28,7 +32,64 @@ export class AuthController {
   constructor(
     private readonly authService: AuthService,
     private readonly authRepo: AuthRepoService,
+    private readonly refreshTokens: RefreshTokenService,
+    private readonly configService: ConfigService,
   ) {}
+
+  private getAccessTokenTtlMs(): number {
+    const rawSeconds = this.configService.get<string>('ACCESS_TOKEN_TTL_SECONDS');
+    const parsedSeconds = rawSeconds ? Number(rawSeconds) : 0;
+    if (parsedSeconds > 0) return parsedSeconds * 1000;
+
+    const raw = this.configService.get<string>('ACCESS_TOKEN_TTL') || this.configService.get<string>('JWT_EXPIRY');
+    if (raw && raw.endsWith('m')) {
+      const minutes = Number(raw.slice(0, -1));
+      if (minutes > 0) return minutes * 60 * 1000;
+    }
+    if (raw && raw.endsWith('h')) {
+      const hours = Number(raw.slice(0, -1));
+      if (hours > 0) return hours * 60 * 60 * 1000;
+    }
+
+    return 15 * 60 * 1000;
+  }
+
+  private getRefreshTokenTtlMs(): number {
+    const rawSeconds = this.configService.get<string>('REFRESH_TOKEN_TTL_SECONDS');
+    const parsedSeconds = rawSeconds ? Number(rawSeconds) : 0;
+    if (parsedSeconds > 0) return parsedSeconds * 1000;
+    return 7 * 24 * 60 * 60 * 1000;
+  }
+
+  private setAuthCookies(res: Response | undefined, accessToken: string, refreshToken: string) {
+    if (!res) return;
+    const isProd = this.configService.get<string>('NODE_ENV') === 'production';
+    const accessMaxAge = this.getAccessTokenTtlMs();
+    const refreshMaxAge = this.getRefreshTokenTtlMs();
+
+    res.cookie('access_token', accessToken, {
+      httpOnly: true,
+      secure: isProd,
+      sameSite: 'lax',
+      path: '/',
+      maxAge: accessMaxAge,
+    });
+
+    res.cookie('refresh_token', refreshToken, {
+      httpOnly: true,
+      secure: isProd,
+      sameSite: 'lax',
+      path: '/',
+      maxAge: refreshMaxAge,
+    });
+  }
+
+  private clearAuthCookies(res: Response | undefined) {
+    if (!res) return;
+    const isProd = this.configService.get<string>('NODE_ENV') === 'production';
+    res.clearCookie('access_token', { httpOnly: true, secure: isProd, sameSite: 'lax', path: '/' });
+    res.clearCookie('refresh_token', { httpOnly: true, secure: isProd, sameSite: 'lax', path: '/' });
+  }
 
   // ─── POST /api/Auth/register/student — [AllowAnonymous] ─────────
 
@@ -88,11 +149,16 @@ export class AuthController {
 
   @Post('login')
   @HttpCode(HttpStatus.OK)
-  async login(@Body() dto: UserForLoginDto) {
+  async login(
+    @Body() dto: UserForLoginDto,
+    @Res({ passthrough: true }) res?: Response,
+  ) {
     try {
       // Check admin credentials first (no DB row)
       if (this.authService.validateAdminCredentials(dto.email, dto.password)) {
         const token = this.authService.createToken(dto.email, 'Admin');
+        const refreshToken = await this.refreshTokens.issueToken({ email: dto.email, role: 'Admin' });
+        this.setAuthCookies(res, token, refreshToken);
         return { token, role: 'Admin', email: dto.email };
       }
 
@@ -144,6 +210,8 @@ export class AuthController {
       }
 
       const token = this.authService.createToken(dto.email, userRole, userId);
+      const refreshToken = await this.refreshTokens.issueToken({ email: dto.email, role: userRole, userId });
+      this.setAuthCookies(res, token, refreshToken);
       return { token, role: userRole, email: dto.email };
     } catch (error) {
       if (error instanceof UnauthorizedException) throw error;
@@ -152,28 +220,64 @@ export class AuthController {
     }
   }
 
-  // ─── GET /api/Auth/refresh/token — [Authorize] ──────────────────
+  // ─── GET /api/Auth/refresh/token — refresh cookie ────────────────
 
-  @UseGuards(JwtAuthGuard)
   @Get('refresh/token')
-  async refreshToken(@Request() req: any) {
+  async refreshToken(
+    @Request() req: any,
+    @Res({ passthrough: true }) res?: Response,
+  ) {
     try {
-      const { email, role } = req.user;
-
-      if (!email || !role) {
-        throw new UnauthorizedException('Invalid token - missing required claims');
+      const refreshToken = req?.cookies?.refresh_token as string | undefined;
+      if (!refreshToken) {
+        throw new UnauthorizedException('Refresh token required');
       }
 
-      const userId = this.authService.getUserIdFromPayload(req.user, role);
-      if (userId === null && role !== 'Admin') {
-        throw new UnauthorizedException('User not found');
+      const rotated = await this.refreshTokens.rotateToken(refreshToken);
+      if (!rotated) {
+        throw new UnauthorizedException('Invalid refresh token');
       }
 
-      const token = this.authService.createToken(email, role, userId ?? undefined);
-      return { token, role, email };
+      const { payload, token: nextRefreshToken } = rotated;
+      if (payload.role === 'Student') {
+        const student = await this.authRepo.getStudentByEmail(payload.email);
+        if (!student?.active) {
+          await this.refreshTokens.revokeToken(nextRefreshToken, payload.email);
+          throw new UnauthorizedException('Account has been deactivated');
+        }
+      } else if (payload.role === 'Teacher') {
+        const teacher = await this.authRepo.getTeacherByEmail(payload.email);
+        if (!teacher?.active) {
+          await this.refreshTokens.revokeToken(nextRefreshToken, payload.email);
+          throw new UnauthorizedException('Account has been deactivated');
+        }
+      }
+
+      const accessToken = this.authService.createToken(payload.email, payload.role, payload.userId);
+      this.setAuthCookies(res, accessToken, nextRefreshToken);
+
+      return { token: accessToken, role: payload.role, email: payload.email };
     } catch (error) {
       if (error instanceof UnauthorizedException) throw error;
       this.logger.error('RefreshToken failed', error);
+      throw new InternalServerErrorException(`Internal server error: ${(error as Error).message}`);
+    }
+  }
+
+  // ─── POST /api/Auth/logout — revoke refresh token ────────────────
+
+  @Post('logout')
+  @HttpCode(HttpStatus.OK)
+  async logout(@Request() req: any, @Res({ passthrough: true }) res?: Response) {
+    try {
+      const refreshToken = req?.cookies?.refresh_token as string | undefined;
+      if (refreshToken) {
+        await this.refreshTokens.revokeToken(refreshToken);
+      }
+      this.clearAuthCookies(res);
+      return { message: 'Logged out' };
+    } catch (error) {
+      this.logger.error('Logout failed', error);
       throw new InternalServerErrorException(`Internal server error: ${(error as Error).message}`);
     }
   }

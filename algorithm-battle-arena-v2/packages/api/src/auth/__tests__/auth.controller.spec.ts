@@ -1,13 +1,16 @@
 ﻿import { Test, TestingModule } from '@nestjs/testing';
 import { BadRequestException, UnauthorizedException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { AuthController } from '../auth.controller';
 import { AuthService } from '../auth.service';
 import { AuthRepoService } from '../auth-repo.service';
+import { RefreshTokenService } from '../refresh-token.service';
 
 describe('AuthController', () => {
   let controller: AuthController;
   let authService: jest.Mocked<AuthService>;
   let authRepo: jest.Mocked<AuthRepoService>;
+  let refreshTokens: jest.Mocked<RefreshTokenService>;
 
   beforeEach(async () => {
     const mockAuthService = {
@@ -33,17 +36,30 @@ describe('AuthController', () => {
       updatePasswordHash: jest.fn(),
     };
 
+    const mockRefreshTokens = {
+      issueToken: jest.fn().mockResolvedValue('mock.refresh.token'),
+      rotateToken: jest.fn(),
+      revokeToken: jest.fn(),
+    };
+
+    const mockConfigService = {
+      get: jest.fn().mockReturnValue(undefined),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       controllers: [AuthController],
       providers: [
         { provide: AuthService, useValue: mockAuthService },
         { provide: AuthRepoService, useValue: mockAuthRepo },
+        { provide: RefreshTokenService, useValue: mockRefreshTokens },
+        { provide: ConfigService, useValue: mockConfigService },
       ],
     }).compile();
 
     controller = module.get<AuthController>(AuthController);
     authService = module.get(AuthService);
     authRepo = module.get(AuthRepoService);
+    refreshTokens = module.get(RefreshTokenService);
   });
 
   // ─── Registration ──────────────────────────────────────────────
@@ -201,18 +217,29 @@ describe('AuthController', () => {
   // ─── Refresh Token ─────────────────────────────────────────────
 
   describe('refreshToken', () => {
-    it('should return new token for valid user', async () => {
-      const req = { user: { email: 'user@test.com', role: 'Student', studentId: 1 } };
-      authService.getUserIdFromPayload.mockReturnValue(1);
+    it('should return new token for valid refresh cookie', async () => {
+      const req = { cookies: { refresh_token: 'old.refresh.token' } };
+      refreshTokens.rotateToken.mockResolvedValue({
+        token: 'new.refresh.token',
+        payload: { email: 'user@test.com', role: 'Student', userId: 1 },
+      });
+      authRepo.getStudentByEmail.mockResolvedValue({
+        studentId: 1,
+        firstName: 'John',
+        lastName: 'Doe',
+        email: 'user@test.com',
+        active: true,
+        teacherId: null,
+      });
 
-      const result = await controller.refreshToken(req);
+      const result = await controller.refreshToken(req as any);
       expect(result.token).toBe('mock.jwt.token');
       expect(result.role).toBe('Student');
     });
 
-    it('should throw UnauthorizedException for missing claims', async () => {
-      const req = { user: {} };
-      await expect(controller.refreshToken(req)).rejects.toThrow(UnauthorizedException);
+    it('should throw UnauthorizedException for missing refresh cookie', async () => {
+      const req = { cookies: {} };
+      await expect(controller.refreshToken(req as any)).rejects.toThrow(UnauthorizedException);
     });
   });
 

@@ -58,9 +58,18 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     return email;
   }
 
+  private getTokenFromCookie(header?: string): string | null {
+    if (!header) return null;
+    const parts = header.split(';').map((chunk) => chunk.trim());
+    const match = parts.find((part) => part.startsWith('access_token='));
+    if (!match) return null;
+    return decodeURIComponent(match.slice('access_token='.length));
+  }
+
   async handleConnection(client: Socket) {
     try {
-      const token = client.handshake.auth?.token || client.handshake.query?.access_token;
+      const cookieToken = this.getTokenFromCookie(client.handshake.headers?.cookie as string | undefined);
+      const token = client.handshake.auth?.token || client.handshake.query?.access_token || cookieToken;
       if (!token) {
         client.disconnect();
         return;
@@ -130,4 +139,3 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     this.server.to(`conversation_${conversationId}`).emit('NewMessage', message);
   }
 }
-

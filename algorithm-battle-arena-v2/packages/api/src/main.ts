@@ -2,6 +2,7 @@
 import { ValidationPipe, Logger } from '@nestjs/common';
 import { AppModule } from './app.module';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
+import cookieParser from 'cookie-parser';
 
 /**
  * Application entry point — mirrors C# Program.cs.
@@ -28,6 +29,8 @@ async function bootstrap() {
       transformOptions: { enableImplicitConversion: true },
     }),
   );
+
+  app.use(cookieParser());
 
   // ─── Global Exception Filter (port of ControllerHelper) ─────────
   app.useGlobalFilters(new AllExceptionsFilter());
@@ -64,4 +67,3 @@ async function bootstrap() {
 }
 
 bootstrap();
-

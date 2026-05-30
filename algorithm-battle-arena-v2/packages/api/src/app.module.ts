@@ -4,6 +4,7 @@ import { ConfigModule } from '@nestjs/config';
 // ─── Core Modules ──────────────────────────────────────────────────
 import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './auth/auth.module';
+import { RedisModule } from './redis/redis.module';
 
 // ─── Middleware ─────────────────────────────────────────────────────
 import { AuditLoggingMiddleware } from './middleware/audit-logging.middleware';
@@ -48,6 +49,9 @@ import { CodeExecutionService } from './code-execution/code-execution.service';
 
     // Prisma (global)
     PrismaModule,
+
+    // Redis (cache / refresh tokens / pubsub)
+    RedisModule,
 
     // Auth (exports AuthService, guards, etc.)
     AuthModule,
@@ -94,4 +98,3 @@ export class AppModule implements NestModule {
     consumer.apply(AuditLoggingMiddleware).forRoutes('*');
   }
 }
-
