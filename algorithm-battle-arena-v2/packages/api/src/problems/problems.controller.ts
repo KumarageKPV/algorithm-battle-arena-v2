@@ -42,7 +42,21 @@ export class ProblemsController {
       req?.user?.email ?? 'anonymous',
     );
     if (!result) throw new NotFoundException('Problem not found or micro-course generation failed');
-    return result;
+    // Deep convert all BigInt values to numbers
+    const convertBigInt = (obj: any): any => {
+      if (obj === null || obj === undefined) return obj;
+      if (typeof obj === 'bigint') return Number(obj);
+      if (Array.isArray(obj)) return obj.map(convertBigInt);
+      if (typeof obj === 'object') {
+        const converted: any = {};
+        for (const key in obj) {
+          converted[key] = convertBigInt(obj[key]);
+        }
+        return converted;
+      }
+      return obj;
+    };
+    return convertBigInt(result);
   }
 
   @UseGuards(JwtAuthGuard)

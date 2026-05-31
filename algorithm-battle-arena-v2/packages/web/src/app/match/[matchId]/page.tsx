@@ -5,10 +5,11 @@ import ProtectedRoute from "@/components/ProtectedRoute";
 import ResultsModal from "@/components/ResultsModal";
 import ConfirmationDialog from "@/components/ConfirmationDialog";
 import MatchChatPanel from "@/components/chat/MatchChatPanel";
-import { codeExecutionApi, matchesApi, submissionsApi } from "@/lib/api";
+import MicroCourseModal from "@/components/MicroCourseModal";
+import { codeExecutionApi, matchesApi, submissionsApi, problemsApi } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 import dynamic from "next/dynamic";
-import { Clock, Send, LogOut, Play, ChevronDown, ChevronRight, CheckCircle, XCircle, MessageCircle } from "lucide-react";
+import { Clock, Send, LogOut, Play, ChevronDown, ChevronRight, CheckCircle, XCircle, MessageCircle, HelpCircle } from "lucide-react";
 
 const MonacoEditor = dynamic(() => import("@monaco-editor/react"), { ssr: false });
 
@@ -27,6 +28,9 @@ export default function MatchPage() {
   const [showResults, setShowResults] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [showChat, setShowChat] = useState(false);
+  const [showMicroCourse, setShowMicroCourse] = useState(false);
+  const [microCourseData, setMicroCourseData] = useState<any>(null);
+  const [isMicroCourseLoading, setIsMicroCourseLoading] = useState(false);
   const [runResults, setRunResults] = useState<any>(null);
   const [currentScore, setCurrentScore] = useState(0);
   const [problemsCompleted, setProblemsCompleted] = useState(0);
@@ -120,6 +124,26 @@ export default function MatchPage() {
 
   const handleLeaveConfirm = () => { setShowConfirm(false); router.push("/lobby"); };
 
+  const handleGetHelp = async () => {
+    if (!activeProblem) { alert("No problem selected"); return; }
+    setShowMicroCourse(true);
+    setIsMicroCourseLoading(true);
+    setMicroCourseData(null);
+    try {
+      const res = await problemsApi.getMicroCourse(activeProblem.problemId, {
+        language,
+        timeLimitSeconds: 600,
+        remainingSec: timeLeft,
+      });
+      setMicroCourseData(res.data);
+    } catch (err: any) {
+      console.error("Failed to load micro-course:", err);
+      setMicroCourseData(null);
+    } finally {
+      setIsMicroCourseLoading(false);
+    }
+  };
+
   return (
     <ProtectedRoute>
       <div className="flex h-screen flex-col bg-[var(--surface)] text-foreground">
@@ -142,6 +166,9 @@ export default function MatchPage() {
             </button>
             <button onClick={handleSubmit} disabled={isSubmitting || !activeProblem || hasSubmittedActive} className={`flex items-center gap-1 rounded-md px-4 py-1.5 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-50 ${hasSubmittedActive ? "border border-border bg-muted text-muted-foreground" : "bg-primary text-primary-foreground hover:bg-[#C62828]"}`}>
               <Send size={14} /> {hasSubmittedActive ? "Submitted" : isSubmitting ? "Submitting" : "Submit"}
+            </button>
+            <button onClick={handleGetHelp} disabled={!activeProblem} className="flex items-center gap-1 rounded-md border border-[var(--warning)]/30 bg-[var(--warning)]/10 px-3 py-1.5 text-sm font-medium text-[#7A5A00] hover:bg-[var(--warning)]/20 disabled:opacity-50">
+              <HelpCircle size={14} /> AI Help
             </button>
             <button onClick={() => setShowChat(!showChat)} className="flex items-center gap-1 rounded-md border border-border bg-white px-3 py-1.5 text-sm hover:bg-muted">
               <MessageCircle size={14} />
@@ -236,6 +263,7 @@ export default function MatchPage() {
         <ResultsModal isOpen={showResults} onClose={() => setShowResults(false)} results={results} onSubmitAgain={() => setShowResults(false)} />
         <ConfirmationDialog isOpen={showConfirm} onClose={() => setShowConfirm(false)} onConfirm={handleLeaveConfirm}
           score={currentScore} problemsCompleted={problemsCompleted} totalProblems={problems.length} timeRemaining={timeLeft * 1000} />
+        <MicroCourseModal isOpen={showMicroCourse} onClose={() => setShowMicroCourse(false)} courseData={microCourseData} isLoading={isMicroCourseLoading} />
         {showChat && <MatchChatPanel matchId={matchId} isOpen={showChat} onToggle={() => setShowChat(!showChat)} currentUserEmail={user?.email || ""} />}
       </div>
     </ProtectedRoute>

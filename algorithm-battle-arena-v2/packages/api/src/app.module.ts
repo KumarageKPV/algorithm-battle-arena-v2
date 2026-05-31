@@ -5,6 +5,7 @@ import { ConfigModule } from '@nestjs/config';
 import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './auth/auth.module';
 import { RedisModule } from './redis/redis.module';
+import { MicroCourseModule } from './micro-course/micro-course.module';
 
 // ─── Middleware ─────────────────────────────────────────────────────
 import { AuditLoggingMiddleware } from './middleware/audit-logging.middleware';
@@ -39,7 +40,6 @@ import { LobbyGateway } from './gateways/lobby.gateway';
 import { ChatGateway } from './gateways/chat.gateway';
 
 // ─── Services ──────────────────────────────────────────────────────
-import { MicroCourseService } from './micro-course/micro-course.service';
 import { CodeExecutionService } from './code-execution/code-execution.service';
 
 @Module({
@@ -55,6 +55,9 @@ import { CodeExecutionService } from './code-execution/code-execution.service';
 
     // Auth (exports AuthService, guards, etc.)
     AuthModule,
+
+    // Micro-course AI help
+    MicroCourseModule,
   ],
   controllers: [
     ProblemsController,
@@ -87,7 +90,6 @@ import { CodeExecutionService } from './code-execution/code-execution.service';
     ChatGateway,
 
     // Business services
-    MicroCourseService,
     CodeExecutionService,
   ],
 })

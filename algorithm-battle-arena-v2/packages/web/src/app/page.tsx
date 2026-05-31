@@ -33,7 +33,8 @@ export default function Home() {
       router.push("/login");
       return;
     }
-    router.push("/host-battle");
+    const normalized = (user?.role || "Student").toLowerCase();
+    router.push(normalized === "teacher" || normalized === "admin" ? "/host-battle" : "/lobby");
   };
 
   return (

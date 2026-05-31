@@ -9,10 +9,12 @@
         condition: service_healthy
       redis:
         condition: service_healthy
+      judge0-server:
+        condition: service_started
     environment:
       - DATABASE_URL=postgresql://postgres:dev@postgres:5432/algorithm_battle_arena
       - REDIS_URL=redis://redis:6379
-      - JUDGE0_API_URL=http://judge0:2358
+      - JUDGE0_API_URL=http://judge0-server:2358
 
   postgres:
     image: postgres:16-alpine
@@ -43,19 +45,70 @@
       timeout: 5s
       retries: 5
 
-  judge0:
-    image: judge0/judge0:latest
+  # ── Judge0 needs its own Postgres and Redis ──────────────────────────────────
+  # Judge0 cannot share your app's Postgres/Redis — it manages its own schema
+  # and job queue internally. These are kept separate to avoid conflicts.
+
+  judge0-postgres:
+    image: postgres:13
+    environment:
+      POSTGRES_DB: judge0
+      POSTGRES_USER: judge0
+      POSTGRES_PASSWORD: judge0_pg_pass
+    volumes:
+      - judge0-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U judge0"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  judge0-redis:
+    image: redis:6-alpine
+    command: redis-server --requirepass judge0_redis_pass
+    volumes:
+      - judge0-redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "judge0_redis_pass", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  judge0-server:
+    image: judge0/judge0:1.13.1-slim
+    build:
+      context: ../judge0-app
+      dockerfile: Dockerfile
+    volumes:
+      - ../judge0-app/judge0.conf:/judge0.conf:ro
     ports:
       - "2358:2358"
-    environment:
-      - REDIS_URL=redis://redis:6379
+    privileged: true
     depends_on:
-      redis:
+      judge0-postgres:
         condition: service_healthy
-      postgres:
+      judge0-redis:
         condition: service_healthy
+    restart: always
+
+  judge0-workers:
+    image: judge0/judge0:1.13.1-slim
+    build:
+      context: ../judge0-app
+      dockerfile: Dockerfile
+    command: ["./scripts/workers"]
+    volumes:
+      - ../judge0-app/judge0.conf:/judge0.conf:ro
+    privileged: true
+    depends_on:
+      judge0-postgres:
+        condition: service_healthy
+      judge0-redis:
+        condition: service_healthy
+    restart: always
 
 volumes:
   pgdata:
   redisdata:
-
+  judge0-pgdata:
+  judge0-redisdata:

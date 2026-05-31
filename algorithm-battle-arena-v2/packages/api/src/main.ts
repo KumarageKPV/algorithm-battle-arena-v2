@@ -19,6 +19,10 @@ async function bootstrap() {
   const logger = new Logger('Bootstrap');
 
   const app = await NestFactory.create(AppModule);
+  const expressApp = app.getHttpAdapter().getInstance();
+  expressApp.set('json replacer', (_key: string, value: unknown) =>
+    typeof value === 'bigint' ? Number(value) : value,
+  );
 
   // ─── Global Validation Pipe ──────────────────────────────────────
   app.useGlobalPipes(

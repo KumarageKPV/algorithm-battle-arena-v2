@@ -94,3 +94,21 @@ export class MicroCourseRequestDto {
   language?: string = '';
 }
 
+/** Port of C# MicroCourseStepDto */
+export class MicroCourseStepDto {
+  title?: string;
+  durationSec!: number;
+  content?: string;
+  example?: string;
+  resources: string[] = [];
+}
+
+/** Port of C# MicroCourseResponseDto */
+export class MicroCourseResponseDto {
+  microCourseId?: string;
+  problemType?: string;
+  summary?: string;
+  steps: MicroCourseStepDto[] = [];
+  disclaimer?: string;
+}
+

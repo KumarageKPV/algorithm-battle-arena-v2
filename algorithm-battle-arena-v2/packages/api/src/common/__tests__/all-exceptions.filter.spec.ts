@@ -33,6 +33,23 @@ describe('AllExceptionsFilter', () => {
     expect(mockJson).toHaveBeenCalledWith({ ok: false, errors: ['bad'] });
   });
 
+  it('should convert BigInt values in HttpException object response', () => {
+    const exception = new HttpException(
+      { ok: false, id: 123n, nested: { count: 456n }, list: [789n] },
+      HttpStatus.BAD_REQUEST,
+    );
+
+    filter.catch(exception, mockHost);
+
+    expect(mockStatus).toHaveBeenCalledWith(400);
+    expect(mockJson).toHaveBeenCalledWith({
+      ok: false,
+      id: 123,
+      nested: { count: 456 },
+      list: [789],
+    });
+  });
+
   it('should handle generic Error with 500 status', () => {
     const exception = new Error('Something broke');
     filter.catch(exception, mockHost);
