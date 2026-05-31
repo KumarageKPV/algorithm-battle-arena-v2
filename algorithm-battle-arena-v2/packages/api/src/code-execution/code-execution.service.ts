@@ -4,11 +4,13 @@ import axios from 'axios';
 
 /** Judge0 language ID mapping. */
 const LANGUAGE_IDS: Record<string, number> = {
-  javascript: 63,
+  c: 50,
+  gcc: 50,
   python: 71,
+  python3: 71,
   java: 62,
   'c++': 54,
-  'c#': 51,
+  cpp: 54,
 };
 
 export interface ExecutionResult {
@@ -17,6 +19,8 @@ export interface ExecutionResult {
   error: string | null;
   executionTime: number;
   timedOut: boolean;
+  memory: number | null;
+  status: string;
 }
 
 /**
@@ -27,33 +31,70 @@ export interface ExecutionResult {
 export class CodeExecutionService {
   private readonly logger = new Logger(CodeExecutionService.name);
   private readonly judge0Url: string;
+  private readonly judge0AuthToken?: string;
+  private readonly maxPollAttempts: number;
+  private readonly pollIntervalMs: number;
 
   constructor(private readonly configService: ConfigService) {
-    this.judge0Url = this.configService.get<string>('JUDGE0_API_URL') || 'http://localhost:2358';
+    this.judge0Url = (
+      this.configService.get<string>('JUDGE0_URL')
+      || this.configService.get<string>('JUDGE0_API_URL')
+      || 'http://localhost:2358'
+    ).replace(/\/$/, '');
+    this.judge0AuthToken = this.configService.get<string>('JUDGE0_AUTH_TOKEN') || undefined;
+    this.maxPollAttempts = Number(this.configService.get<string>('JUDGE0_MAX_POLL_ATTEMPTS') || 20);
+    this.pollIntervalMs = Number(this.configService.get<string>('JUDGE0_POLL_INTERVAL_MS') || 500);
   }
 
   async executeCode(
     code: string, language: string, stdin: string, timeoutSec = 5,
   ): Promise<ExecutionResult> {
-    const languageId = LANGUAGE_IDS[language.toLowerCase()] || 63;
+    const languageId = LANGUAGE_IDS[language.toLowerCase()];
+    if (!languageId) {
+      return {
+        success: false,
+        output: '',
+        error: `Unsupported language: ${language}`,
+        executionTime: 0,
+        timedOut: false,
+        memory: null,
+        status: 'Unsupported Language',
+      };
+    }
 
     try {
-      // Submit code to Judge0
-      const submitResponse = await axios.post(`${this.judge0Url}/submissions?wait=true`, {
-        source_code: code,
+      const submitResponse = await axios.post(`${this.judge0Url}/submissions`, {
+        source_code: this.toBase64(code),
         language_id: languageId,
-        stdin,
+        stdin: this.toBase64(stdin),
+        base64_encoded: true,
         cpu_time_limit: timeoutSec,
-      }, { timeout: timeoutSec * 1000 + 10000 });
+        wall_time_limit: Math.max(timeoutSec + 3, timeoutSec),
+        memory_limit: 131072,
+      }, {
+        headers: this.judge0Headers(),
+        timeout: timeoutSec * 1000 + 10000,
+      });
 
-      const result = submitResponse.data;
+      const token = submitResponse.data?.token;
+      if (!token) {
+        throw new Error('Judge0 did not return a submission token');
+      }
+
+      const result = await this.getResult(token, timeoutSec);
+      const statusId = result.status?.id;
+      const stdout = this.fromBase64(result.stdout).trim();
+      const stderr = this.fromBase64(result.stderr);
+      const compileOutput = this.fromBase64(result.compile_output);
 
       return {
-        success: result.status?.id === 3, // Accepted
-        output: (result.stdout || '').trim(),
-        error: result.stderr || result.compile_output || null,
+        success: statusId === 3, // Accepted
+        output: stdout,
+        error: stderr || compileOutput || null,
         executionTime: parseFloat(result.time || '0') * 1000,
-        timedOut: result.status?.id === 5, // Time Limit Exceeded
+        timedOut: statusId === 5, // Time Limit Exceeded
+        memory: result.memory ?? null,
+        status: result.status?.description || 'Unknown',
       };
     } catch (error) {
       this.logger.error('Judge0 execution failed', error);
@@ -63,6 +104,8 @@ export class CodeExecutionService {
         error: `Execution service error: ${(error as Error).message}`,
         executionTime: 0,
         timedOut: false,
+        memory: null,
+        status: 'Execution Service Error',
       };
     }
   }
@@ -86,12 +129,49 @@ export class CodeExecutionService {
         expectedOutput: tc.expectedOutput,
         actualOutput: execResult.output,
         executionTime: execResult.executionTime,
+        memory: execResult.memory,
+        status: execResult.status,
         error: execResult.error,
       });
     }
 
     const score = testCases.length > 0 ? Math.round((passedCount / testCases.length) * 100) : 0;
-    return { score, passedCount, totalCount: testCases.length, testCaseResults: results };
+    return {
+      score,
+      passedCount,
+      totalCount: testCases.length,
+      allPassed: testCases.length > 0 && passedCount === testCases.length,
+      testCaseResults: results,
+    };
+  }
+
+  private async getResult(token: string, timeoutSec: number) {
+    for (let i = 0; i < this.maxPollAttempts; i++) {
+      const response = await axios.get(
+        `${this.judge0Url}/submissions/${token}?base64_encoded=true`,
+        {
+          headers: this.judge0Headers(),
+          timeout: timeoutSec * 1000 + 10000,
+        },
+      );
+      const result = response.data;
+      if (result.status?.id > 2) {
+        return result;
+      }
+      await new Promise((resolve) => setTimeout(resolve, this.pollIntervalMs));
+    }
+    throw new Error('Judge0 timed out');
+  }
+
+  private judge0Headers() {
+    return this.judge0AuthToken ? { 'X-Auth-Token': this.judge0AuthToken } : undefined;
+  }
+
+  private toBase64(value: string) {
+    return Buffer.from(value || '').toString('base64');
+  }
+
+  private fromBase64(value?: string | null) {
+    return value ? Buffer.from(value, 'base64').toString() : '';
   }
 }
-

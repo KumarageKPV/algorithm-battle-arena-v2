@@ -19,6 +19,7 @@ describe('CodeExecutionService', () => {
           useValue: {
             get: (key: string) => {
               if (key === 'JUDGE0_API_URL') return 'http://localhost:2358';
+              if (key === 'JUDGE0_AUTH_TOKEN') return 'test-token';
               return undefined;
             },
           },
@@ -36,15 +37,18 @@ describe('CodeExecutionService', () => {
   describe('executeCode', () => {
     it('should return success for accepted submission', async () => {
       mockedAxios.post.mockResolvedValue({
+        data: { token: 'abc123' },
+      });
+      mockedAxios.get.mockResolvedValue({
         data: {
           status: { id: 3, description: 'Accepted' },
-          stdout: '42\n',
+          stdout: Buffer.from('42\n').toString('base64'),
           stderr: null,
           time: '0.025',
         },
       });
 
-      const result = await service.executeCode('console.log(42)', 'javascript', '');
+      const result = await service.executeCode('print(42)', 'python', '');
       expect(result.success).toBe(true);
       expect(result.output).toBe('42');
       expect(result.error).toBeNull();
@@ -54,6 +58,9 @@ describe('CodeExecutionService', () => {
 
     it('should return timedOut for TLE', async () => {
       mockedAxios.post.mockResolvedValue({
+        data: { token: 'abc123' },
+      });
+      mockedAxios.get.mockResolvedValue({
         data: {
           status: { id: 5, description: 'Time Limit Exceeded' },
           stdout: null,
@@ -62,18 +69,21 @@ describe('CodeExecutionService', () => {
         },
       });
 
-      const result = await service.executeCode('while(true){}', 'javascript', '');
+      const result = await service.executeCode('while True: pass', 'python', '');
       expect(result.success).toBe(false);
       expect(result.timedOut).toBe(true);
     });
 
     it('should return compilation error', async () => {
       mockedAxios.post.mockResolvedValue({
+        data: { token: 'abc123' },
+      });
+      mockedAxios.get.mockResolvedValue({
         data: {
           status: { id: 6, description: 'Compilation Error' },
           stdout: null,
           stderr: null,
-          compile_output: 'SyntaxError: unexpected token',
+          compile_output: Buffer.from('SyntaxError: unexpected token').toString('base64'),
           time: '0',
         },
       });
@@ -91,22 +101,35 @@ describe('CodeExecutionService', () => {
       expect(result.error).toContain('ECONNREFUSED');
     });
 
-    it('should send correct language ID for JavaScript', async () => {
+    it('should send correct language ID for C++', async () => {
       mockedAxios.post.mockResolvedValue({
-        data: { status: { id: 3 }, stdout: '', time: '0' },
+        data: { token: 'abc123' },
+      });
+      mockedAxios.get.mockResolvedValue({
+        data: { status: { id: 3, description: 'Accepted' }, stdout: '', time: '0' },
       });
 
-      await service.executeCode('code', 'javascript', 'input');
+      await service.executeCode('code', 'c++', 'input');
       expect(mockedAxios.post).toHaveBeenCalledWith(
-        'http://localhost:2358/submissions?wait=true',
-        expect.objectContaining({ language_id: 63, source_code: 'code', stdin: 'input' }),
-        expect.any(Object),
+        'http://localhost:2358/submissions',
+        expect.objectContaining({
+          language_id: 54,
+          source_code: Buffer.from('code').toString('base64'),
+          stdin: Buffer.from('input').toString('base64'),
+          base64_encoded: true,
+        }),
+        expect.objectContaining({
+          headers: { 'X-Auth-Token': 'test-token' },
+        }),
       );
     });
 
     it('should send correct language ID for Python', async () => {
       mockedAxios.post.mockResolvedValue({
-        data: { status: { id: 3 }, stdout: '', time: '0' },
+        data: { token: 'abc123' },
+      });
+      mockedAxios.get.mockResolvedValue({
+        data: { status: { id: 3, description: 'Accepted' }, stdout: '', time: '0' },
       });
 
       await service.executeCode('code', 'python', '');
@@ -121,10 +144,13 @@ describe('CodeExecutionService', () => {
   describe('runTestCases', () => {
     it('should score 100% when all test cases pass', async () => {
       mockedAxios.post.mockResolvedValue({
-        data: { status: { id: 3 }, stdout: '42\n', time: '0.01' },
+        data: { token: 'abc123' },
+      });
+      mockedAxios.get.mockResolvedValue({
+        data: { status: { id: 3 }, stdout: Buffer.from('42\n').toString('base64'), time: '0.01' },
       });
 
-      const result = await service.runTestCases('code', 'javascript', [
+      const result = await service.runTestCases('code', 'python', [
         { inputData: '1', expectedOutput: '42' },
         { inputData: '2', expectedOutput: '42' },
       ]);
@@ -135,11 +161,12 @@ describe('CodeExecutionService', () => {
     });
 
     it('should score 50% when half test cases pass', async () => {
-      mockedAxios.post
-        .mockResolvedValueOnce({ data: { status: { id: 3 }, stdout: '42\n', time: '0.01' } })
-        .mockResolvedValueOnce({ data: { status: { id: 3 }, stdout: 'wrong\n', time: '0.01' } });
+      mockedAxios.post.mockResolvedValue({ data: { token: 'abc123' } });
+      mockedAxios.get
+        .mockResolvedValueOnce({ data: { status: { id: 3 }, stdout: Buffer.from('42\n').toString('base64'), time: '0.01' } })
+        .mockResolvedValueOnce({ data: { status: { id: 3 }, stdout: Buffer.from('wrong\n').toString('base64'), time: '0.01' } });
 
-      const result = await service.runTestCases('code', 'javascript', [
+      const result = await service.runTestCases('code', 'python', [
         { inputData: '1', expectedOutput: '42' },
         { inputData: '2', expectedOutput: '99' },
       ]);
@@ -151,10 +178,13 @@ describe('CodeExecutionService', () => {
 
     it('should score 0% when no test cases pass', async () => {
       mockedAxios.post.mockResolvedValue({
-        data: { status: { id: 6 }, stdout: null, compile_output: 'error', time: '0' },
+        data: { token: 'abc123' },
+      });
+      mockedAxios.get.mockResolvedValue({
+        data: { status: { id: 6 }, stdout: null, compile_output: Buffer.from('error').toString('base64'), time: '0' },
       });
 
-      const result = await service.runTestCases('bad code', 'javascript', [
+      const result = await service.runTestCases('bad code', 'python', [
         { inputData: '1', expectedOutput: '42' },
       ]);
 
@@ -169,4 +199,3 @@ describe('CodeExecutionService', () => {
     });
   });
 });
-
