@@ -23,6 +23,19 @@ interface Conversation {
   updatedAt: string;
 }
 
+function dedupeConversations(conversations: Conversation[]) {
+  const byId = new Map<number, Conversation>();
+
+  conversations.forEach((conversation) => {
+    const existing = byId.get(conversation.conversationId);
+    if (!existing || new Date(conversation.updatedAt).getTime() > new Date(existing.updatedAt).getTime()) {
+      byId.set(conversation.conversationId, conversation);
+    }
+  });
+
+  return Array.from(byId.values());
+}
+
 export function useChat() {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [messages, setMessages] = useState<Record<number, Message[]>>({});
@@ -44,7 +57,7 @@ export function useChat() {
     setLoading(true);
     try {
       const res = await chatApi.getConversations();
-      setConversations(res.data);
+      setConversations(dedupeConversations(res.data || []));
     } finally {
       setLoading(false);
     }

@@ -62,6 +62,28 @@ function conversationSubtitle(conversation: ChatConversation) {
   return "Friend chat";
 }
 
+function conversationDedupeKey(conversation: ChatConversation, currentEmail?: string) {
+  if (conversation.type === "Friend" || conversation.type === "TeacherStudent") {
+    const others = conversation.participants
+      .filter((participant) => participant !== currentEmail)
+      .map((participant) => participant.toLowerCase())
+      .sort();
+    return `${conversation.type}:${others.join("|")}`;
+  }
+
+  return `${conversation.type}:${conversation.referenceId ?? conversation.conversationId}`;
+}
+
+function conversationGroupLabel(conversation: ChatConversation, currentEmail?: string) {
+  if (conversation.type === "Friend" || conversation.type === "TeacherStudent") {
+    return `Messages from ${conversationTitle(conversation, currentEmail)}`;
+  }
+
+  if (conversation.type === "Lobby") return `Lobby messages`;
+  if (conversation.type === "Match") return `Match messages`;
+  return "Messages";
+}
+
 function formatTime(sentAt?: string) {
   if (!sentAt) return "Now";
   const date = new Date(sentAt);
@@ -72,52 +94,120 @@ function formatTime(sentAt?: string) {
 export default function ChatPage() {
   const { user } = useAuth();
   const { conversations, messages, loading, joinConversation, leaveConversation, sendMessage, loadConversations } = useChat();
-  const [activeConversationId, setActiveConversationId] = useState<number | null>(null);
+  const [activeGroupKey, setActiveGroupKey] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [draft, setDraft] = useState("");
   const displayName = prettifyHandle(user?.email || "Student");
 
+  const conversationGroups = useMemo(() => {
+    const groups = new Map<string, { key: string; label: string; title: string; conversations: ChatConversation[] }>();
+
+    (conversations as ChatConversation[]).forEach((conversation) => {
+      const key = conversationDedupeKey(conversation, user?.email);
+      const existing = groups.get(key);
+
+      if (existing) {
+        existing.conversations.push(conversation);
+      } else {
+        groups.set(key, {
+          key,
+          label: conversationGroupLabel(conversation, user?.email),
+          title: conversationTitle(conversation, user?.email),
+          conversations: [conversation],
+        });
+      }
+    });
+
+    return Array.from(groups.values())
+      .map((group) => ({
+        ...group,
+        conversations: group.conversations.sort(
+          (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
+        ),
+      }))
+      .sort(
+        (a, b) =>
+          new Date(b.conversations[0]?.updatedAt || 0).getTime() -
+          new Date(a.conversations[0]?.updatedAt || 0).getTime(),
+      );
+  }, [conversations, user?.email]);
+
   useEffect(() => {
-    if (conversations.length === 0) {
-      setActiveConversationId(null);
+    if (conversationGroups.length === 0) {
+      setActiveGroupKey(null);
       return;
     }
 
-    if (!activeConversationId || !conversations.some((conversation) => conversation.conversationId === activeConversationId)) {
-      setActiveConversationId(conversations[0].conversationId);
+    if (!activeGroupKey || !conversationGroups.some((group) => group.key === activeGroupKey)) {
+      setActiveGroupKey(conversationGroups[0].key);
     }
-  }, [conversations, activeConversationId]);
+  }, [conversationGroups, activeGroupKey]);
 
-  useEffect(() => {
-    if (!activeConversationId) return;
-    joinConversation(activeConversationId);
-    return () => leaveConversation(activeConversationId);
-  }, [activeConversationId, joinConversation, leaveConversation]);
-
-  const filteredConversations = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    if (!q) return conversations as ChatConversation[];
-
-    return (conversations as ChatConversation[]).filter((conversation) => {
-      const title = conversationTitle(conversation, user?.email).toLowerCase();
-      const preview = (conversation.lastMessage?.content || "").toLowerCase();
-      const participants = conversation.participants.join(" ").toLowerCase();
-      return title.includes(q) || preview.includes(q) || participants.includes(q);
-    });
-  }, [conversations, search, user?.email]);
-
-  const activeConversation = useMemo(
-    () => (conversations as ChatConversation[]).find((conversation) => conversation.conversationId === activeConversationId) || null,
-    [conversations, activeConversationId],
+  const activeGroup = useMemo(
+    () => conversationGroups.find((group) => group.key === activeGroupKey) || null,
+    [conversationGroups, activeGroupKey],
   );
 
-  const activeMessages = (messages[activeConversationId ?? -1] ?? []) as ChatMessage[];
+  const activeConversationIds = useMemo(
+    () => activeGroup?.conversations.map((conversation) => conversation.conversationId) ?? [],
+    [activeGroup],
+  );
+
+  useEffect(() => {
+    if (activeConversationIds.length === 0) return;
+    activeConversationIds.forEach((conversationId) => joinConversation(conversationId));
+    return () => activeConversationIds.forEach((conversationId) => leaveConversation(conversationId));
+  }, [activeConversationIds, joinConversation, leaveConversation]);
+
+  const filteredConversationGroups = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return conversationGroups;
+
+    return conversationGroups
+      .map((group) => ({
+        ...group,
+        conversations: group.conversations.filter((conversation) => {
+          const title = conversationTitle(conversation, user?.email).toLowerCase();
+          const preview = (conversation.lastMessage?.content || "").toLowerCase();
+          const participants = conversation.participants.join(" ").toLowerCase();
+          return group.label.toLowerCase().includes(q) || title.includes(q) || preview.includes(q) || participants.includes(q);
+        }),
+      }))
+      .filter((group) => group.conversations.length > 0);
+  }, [conversationGroups, search, user?.email]);
+
+  const activeConversation = activeGroup?.conversations[0] ?? null;
+
+  const activeMessages = useMemo(
+    () =>
+      activeConversationIds
+        .flatMap((conversationId) => (messages[conversationId] ?? []) as ChatMessage[])
+        .sort((a, b) => new Date(a.sentAt).getTime() - new Date(b.sentAt).getTime()),
+    [messages, activeConversationIds],
+  );
+  const activeMessageGroups = useMemo(() => {
+    return activeMessages.reduce<Array<{ senderEmail: string; senderName: string; messages: ChatMessage[] }>>((groups, message) => {
+      const lastGroup = groups[groups.length - 1];
+
+      if (lastGroup?.senderEmail === message.senderEmail) {
+        lastGroup.messages.push(message);
+        return groups;
+      }
+
+      groups.push({
+        senderEmail: message.senderEmail,
+        senderName: message.senderName,
+        messages: [message],
+      });
+      return groups;
+    }, []);
+  }, [activeMessages]);
 
   const handleSend = async () => {
-    if (!activeConversationId || !draft.trim()) return;
+    if (!activeConversation || !draft.trim()) return;
     const next = draft.trim();
     setDraft("");
-    await sendMessage(activeConversationId, next);
+    await sendMessage(activeConversation.conversationId, next);
   };
 
   const quickPrompts = [
@@ -130,7 +220,7 @@ export default function ChatPage() {
   return (
     <ProtectedRoute allowedRoles={["Student"]}>
       <AppShell role="student" current="chat">
-        <div className="flex h-full min-h-0 flex-col overflow-hidden bg-[var(--surface)] text-foreground">
+        <div className="flex h-[calc(100vh-3.5rem)] min-h-0 flex-col overflow-hidden bg-[var(--surface)] text-foreground">
           <div className="border-b border-border bg-white px-4 py-3 sm:px-6">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
@@ -152,7 +242,7 @@ export default function ChatPage() {
             </div>
           </div>
 
-          <div className="grid min-h-0 flex-1 grid-cols-1 overflow-hidden xl:grid-cols-[320px_minmax(0,1fr)_300px]">
+          <div className="grid min-h-0 flex-1 grid-cols-1 overflow-hidden md:grid-cols-[300px_minmax(0,1fr)] xl:grid-cols-[320px_minmax(0,1fr)_300px]">
             {/* Threads */}
             <aside className="flex min-h-0 flex-col overflow-hidden border-r border-border bg-white">
               <div className="border-b border-border p-3">
@@ -168,35 +258,37 @@ export default function ChatPage() {
               </div>
 
               <div className="flex-1 overflow-y-auto">
-                {filteredConversations.length > 0 ? (
-                  filteredConversations.map((conversation) => {
-                    const active = conversation.conversationId === activeConversationId;
-                    const title = conversationTitle(conversation, user?.email);
-                    const subtitle = conversationSubtitle(conversation);
+                {filteredConversationGroups.length > 0 ? (
+                  filteredConversationGroups.map((group) => {
+                    const conversation = group.conversations[0];
+                    const active = group.key === activeGroupKey;
                     const preview = conversation.lastMessage?.content || "No messages yet. Say hello.";
                     const stamp = formatTime(conversation.lastMessage?.sentAt || conversation.updatedAt);
+                    const subtitle = group.conversations.length > 1
+                      ? `${group.conversations.length} threads`
+                      : conversationSubtitle(conversation);
 
                     return (
                       <button
-                        key={conversation.conversationId}
-                        onClick={() => setActiveConversationId(conversation.conversationId)}
+                        key={group.key}
+                        onClick={() => setActiveGroupKey(group.key)}
                         className={`flex w-full items-start gap-3 border-b border-border px-3 py-3 text-left transition ${active ? "bg-primary/[0.05]" : "hover:bg-muted/30"}`}
                       >
                         <div className="relative shrink-0">
                           <Avatar className="size-10">
-                            <AvatarFallback className="bg-primary/10 text-primary text-xs">{initials(title)}</AvatarFallback>
+                            <AvatarFallback className="bg-primary/10 text-primary text-xs">{initials(group.title)}</AvatarFallback>
                           </Avatar>
                           <span className={`absolute -bottom-0.5 -right-0.5 size-3 rounded-full ring-2 ring-white ${active ? "bg-success" : "bg-muted-foreground/40"}`} />
                         </div>
 
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center justify-between gap-2">
-                            <div className="truncate text-sm font-medium">{title}</div>
+                            <div className="truncate text-sm font-medium">{group.title}</div>
                             <span className="shrink-0 font-mono text-[10px] text-muted-foreground">{stamp}</span>
                           </div>
                           <div className="mt-0.5 flex items-center justify-between gap-2">
                             <div className="truncate text-xs text-muted-foreground">{preview}</div>
-                            <Chip tone={conversation.participants.length > 2 ? "warning" : "neutral"} className="shrink-0">{subtitle}</Chip>
+                            <Chip tone={group.conversations.length > 1 ? "warning" : "neutral"} className="shrink-0">{subtitle}</Chip>
                           </div>
                         </div>
                       </button>
@@ -235,10 +327,6 @@ export default function ChatPage() {
                       </Avatar>
                       <div>
                         <div className="font-display font-semibold leading-tight">{conversationTitle(activeConversation, user?.email)}</div>
-                        <div className="flex items-center gap-1.5 font-mono text-[10px] text-muted-foreground">
-                          <span className="size-1.5 rounded-full bg-success" />
-                          {conversationSubtitle(activeConversation)} · {activeConversation.participants.length} participants
-                        </div>
                       </div>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
@@ -262,21 +350,46 @@ export default function ChatPage() {
                         </div>
                       </div>
                     ) : (
-                      activeMessages.map((message) => {
-                        const mine = message.senderEmail === user?.email;
+                      activeMessageGroups.map((group) => {
+                        const mine = group.senderEmail === user?.email;
+                        const lastMessage = group.messages[group.messages.length - 1];
                         return (
-                          <div key={message.messageId} className={`flex gap-2 ${mine ? "flex-row-reverse" : ""}`}>
+                          <div key={`${group.senderEmail}-${group.messages[0].messageId}`} className={`flex gap-2 ${mine ? "flex-row-reverse" : ""}`}>
                             {!mine && (
                               <Avatar className="size-8">
-                                <AvatarFallback className="bg-primary/10 text-primary text-[10px]">{initials(message.senderName || message.senderEmail)}</AvatarFallback>
+                                <AvatarFallback className="bg-primary/10 text-primary text-[10px]">{initials(group.senderName || group.senderEmail)}</AvatarFallback>
                               </Avatar>
                             )}
                             <div className={`max-w-[75%] ${mine ? "items-end" : "items-start"} flex flex-col`}>
-                              <div className={`rounded-2xl px-3.5 py-2 text-sm shadow-sm ${mine ? "bg-primary text-white" : "bg-white text-foreground"}`}>
-                                {message.content}
+                              {!mine && <div className="mb-1 px-1 text-xs font-medium text-muted-foreground">{prettifyHandle(group.senderName || group.senderEmail)}</div>}
+                              <div className={`flex flex-col gap-1 ${mine ? "items-end" : "items-start"}`}>
+                                {group.messages.map((message, index) => (
+                                  <div
+                                    key={message.messageId}
+                                    className={`px-3.5 py-2 text-sm shadow-sm ${
+                                      mine ? "bg-primary text-white" : "bg-white text-foreground"
+                                    } ${
+                                      group.messages.length === 1
+                                        ? "rounded-2xl"
+                                        : mine
+                                          ? index === 0
+                                            ? "rounded-2xl rounded-br-md"
+                                            : index === group.messages.length - 1
+                                              ? "rounded-2xl rounded-tr-md"
+                                              : "rounded-2xl rounded-r-md"
+                                          : index === 0
+                                            ? "rounded-2xl rounded-bl-md"
+                                            : index === group.messages.length - 1
+                                              ? "rounded-2xl rounded-tl-md"
+                                              : "rounded-2xl rounded-l-md"
+                                    }`}
+                                  >
+                                    {message.content}
+                                  </div>
+                                ))}
                               </div>
                               <div className={`mt-1 flex items-center gap-1 font-mono text-[10px] text-muted-foreground ${mine ? "flex-row-reverse" : ""}`}>
-                                {formatTime(message.sentAt)}
+                                {formatTime(lastMessage.sentAt)}
                                 {mine && <CheckCheck className="size-3 text-primary" />}
                               </div>
                             </div>
@@ -384,7 +497,3 @@ export default function ChatPage() {
     </ProtectedRoute>
   );
 }
-
-
-
-
