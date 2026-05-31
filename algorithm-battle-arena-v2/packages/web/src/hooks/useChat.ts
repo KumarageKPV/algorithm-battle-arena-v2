@@ -29,22 +29,15 @@ export function useChat() {
   const [activeConversation, setActiveConversation] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
 
-  // Start chat socket on mount
-  useEffect(() => {
-    if (!chatSocket.isConnected) {
-      chatSocket.start();
-    }
-
-    const unsub = chatSocket.onReceiveMessage((msg: Message) => {
-      setMessages((prev) => ({
+  const appendMessage = useCallback((msg: Message) => {
+    setMessages((prev) => {
+      const current = prev[msg.conversationId] || [];
+      if (current.some((m) => m.messageId === msg.messageId)) return prev;
+      return {
         ...prev,
-        [msg.conversationId]: [...(prev[msg.conversationId] || []), msg],
-      }));
+        [msg.conversationId]: [...current, msg],
+      };
     });
-
-    return () => {
-      unsub();
-    };
   }, []);
 
   const loadConversations = useCallback(async () => {
@@ -56,6 +49,20 @@ export function useChat() {
       setLoading(false);
     }
   }, []);
+
+  useEffect(() => {
+    if (!chatSocket.isConnected) {
+      chatSocket.start();
+    }
+
+    loadConversations().catch((err) => console.error("Failed to load conversations", err));
+
+    const unsub = chatSocket.onReceiveMessage((msg: Message) => appendMessage(msg));
+
+    return () => {
+      unsub();
+    };
+  }, [appendMessage, loadConversations]);
 
   const joinConversation = useCallback(async (convId: number) => {
     setActiveConversation(convId);
@@ -77,11 +84,13 @@ export function useChat() {
 
   const sendMessage = useCallback(async (convId: number, content: string) => {
     try {
-      await chatApi.sendMessage(convId, content);
+      const res = await chatApi.sendMessage(convId, content);
+      if (res.data?.messageId) appendMessage(res.data);
+      loadConversations().catch(() => {});
     } catch (err) {
       console.error("Failed to send message", err);
     }
-  }, []);
+  }, [appendMessage, loadConversations]);
 
   const createFriendConversation = useCallback(async (friendId: number, friendEmail: string) => {
     const res = await chatApi.createFriendConversation({ friendId, friendEmail });

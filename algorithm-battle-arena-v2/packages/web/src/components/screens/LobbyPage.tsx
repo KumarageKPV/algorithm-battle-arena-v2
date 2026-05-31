@@ -170,6 +170,7 @@ export function LobbyPage({ onEnter }: { onEnter: (lobbyId: number) => void }) {
       </div>
       <CreateLobbyModal
         isOpen={showCreate}
+        isCreating={creating}
         onClose={() => !creating && setShowCreate(false)}
         onCreate={handleCreate}
       />

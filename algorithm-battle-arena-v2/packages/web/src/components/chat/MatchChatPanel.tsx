@@ -18,24 +18,23 @@ export default function MatchChatPanel({ matchId, isOpen, onToggle, currentUserE
       joinConversation(matchConv.conversationId);
     }
     return () => { if (matchConv) leaveConversation(matchConv.conversationId); };
-  }, [matchConv]);
+  }, [matchConv, joinConversation, leaveConversation]);
 
   const handleSend = useCallback((content: string) => { if (convId) sendMessage(convId, content); }, [convId, sendMessage]);
 
   if (!isOpen) {
     return (
-      <button onClick={onToggle} className="fixed bottom-4 right-4 bg-blue-600 hover:bg-blue-700 text-white p-3 rounded-full shadow-lg z-50">
+      <button onClick={onToggle} className="fixed bottom-4 right-4 z-50 rounded-full bg-primary p-3 text-primary-foreground shadow-lg hover:bg-primary/90">
         <MessageCircle size={20} />
       </button>
     );
   }
 
   return (
-    <div className="fixed bottom-4 right-4 w-80 h-96 flex flex-col rounded-lg shadow-xl z-50 overflow-hidden"
-      style={{ background: "rgba(20, 20, 20, 0.95)", border: "2px solid #666" }}>
-      <div className="p-3 border-b border-gray-700 flex justify-between items-center">
-        <span style={{ color: "#ffed4e", fontFamily: "'Courier New', monospace", fontWeight: "bold", fontSize: "0.85rem" }}>Match Chat</span>
-        <button onClick={onToggle} className="text-gray-400 hover:text-white"><X size={16} /></button>
+    <div className="fixed bottom-4 right-4 z-50 flex h-96 w-80 flex-col overflow-hidden rounded-lg border border-border bg-white shadow-xl">
+      <div className="flex items-center justify-between border-b border-border p-3">
+        <span className="font-display text-sm font-semibold">Match Chat</span>
+        <button onClick={onToggle} className="rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground"><X size={16} /></button>
       </div>
       {convId ? (
         <>
@@ -43,9 +42,8 @@ export default function MatchChatPanel({ matchId, isOpen, onToggle, currentUserE
           <MessageInput onSendMessage={handleSend} />
         </>
       ) : (
-        <div className="flex-1 flex items-center justify-center text-gray-500 text-sm">No match chat available</div>
+        <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">No match chat available</div>
       )}
     </div>
   );
 }
-

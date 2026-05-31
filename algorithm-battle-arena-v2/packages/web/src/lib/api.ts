@@ -82,6 +82,8 @@ export const lobbiesApi = {
 export const matchesApi = {
   start: (lobbyId: number, data: any) =>
     api.post(`/Matches/${lobbyId}/start`, data),
+  getProblems: (matchId: number) =>
+    api.get(`/Matches/${matchId}/problems`),
   getLeaderboard: (matchId: number) =>
     api.get(`/Matches/${matchId}/leaderboard`),
   getGlobalLeaderboard: () => api.get("/Matches/leaderboard/global"),
@@ -92,6 +94,11 @@ export const submissionsApi = {
   create: (data: any) => api.post("/Submissions", data),
   getUserSubmissions: (matchId: number) =>
     api.get(`/Submissions/match/${matchId}/user`),
+};
+
+// ─── Code Execution ────────────────────────────────────────────────
+export const codeExecutionApi = {
+  runTests: (data: any) => api.post("/CodeExecution/run-tests", data),
 };
 
 // ─── Chat ──────────────────────────────────────────────────────────

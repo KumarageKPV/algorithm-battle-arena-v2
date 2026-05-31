@@ -1,6 +1,6 @@
 ﻿import {
   Controller, Get, Post, Body, Param, UseGuards, Request,
-  HttpCode, HttpStatus, Logger, ForbiddenException,
+  HttpCode, HttpStatus, Logger, ForbiddenException, BadRequestException,
 } from '@nestjs/common';
 import { JwtAuthGuard, StudentOrAdminGuard } from '../auth/guards';
 import { MatchRepoService } from './match-repo.service';
@@ -38,6 +38,7 @@ export class MatchesController {
     const lid = parseInt(lobbyId, 10);
     const isHost = await this.lobbyRepo.isHost(lid, req.user.email);
     if (!isHost) throw new ForbiddenException('Only the host can start the match.');
+    if (!body.problemIds?.length) throw new BadRequestException('Select at least one problem before starting the match.');
 
     const match = await this.matchRepo.createMatch(lid, body.problemIds);
 
@@ -69,16 +70,20 @@ export class MatchesController {
   }
 
   @UseGuards(JwtAuthGuard)
-  @Get(':matchId/leaderboard')
-  async getMatchLeaderboard(@Param('matchId') matchId: string) {
-    return this.matchRepo.getMatchLeaderboard(parseInt(matchId, 10));
-  }
-
-  @UseGuards(JwtAuthGuard)
   @Get('leaderboard/global')
   async getGlobalLeaderboard() {
     return this.matchRepo.getGlobalLeaderboard();
   }
+
+  @UseGuards(JwtAuthGuard)
+  @Get(':matchId/problems')
+  async getMatchProblems(@Param('matchId') matchId: string) {
+    return this.matchRepo.getMatchProblems(parseInt(matchId, 10));
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get(':matchId/leaderboard')
+  async getMatchLeaderboard(@Param('matchId') matchId: string) {
+    return this.matchRepo.getMatchLeaderboard(parseInt(matchId, 10));
+  }
 }
-
-

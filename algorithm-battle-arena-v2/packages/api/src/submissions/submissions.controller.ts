@@ -17,7 +17,7 @@ export class SubmissionsController {
   @Post()
   @HttpCode(HttpStatus.OK)
   async createSubmission(@Body() body: CreateSubmissionDto, @Request() req: any) {
-    const submissionId = await this.submissionRepo.createSubmission({
+    return this.submissionRepo.createSubmission({
       matchId: body.matchId,
       problemId: body.problemId,
       participantEmail: req.user.email,
@@ -26,7 +26,6 @@ export class SubmissionsController {
       status: body.status || 'Submitted',
       score: body.score,
     });
-    return { SubmissionId: submissionId };
   }
 
   @Get('match/:matchId/user')
@@ -34,4 +33,3 @@ export class SubmissionsController {
     return this.submissionRepo.getSubmissionsByMatchAndUser(parseInt(matchId, 10), req.user.email);
   }
 }
-

@@ -76,18 +76,19 @@ export class ChatController {
 
     const messageId = await this.chatRepo.sendMessageAsync(conversationId, req.user.email, body.content.trim());
 
-    // Resolve sender name and broadcast via Socket.IO
     const senderName = await this.resolveSenderName(req.user.email);
-    this.chatGateway.emitNewMessage(conversationId, {
+    const message = {
       messageId,
       conversationId,
       senderEmail: req.user.email,
       senderName,
       content: body.content.trim(),
       sentAt: new Date().toISOString(),
-    });
+    };
 
-    return { MessageId: messageId };
+    this.chatGateway.emitNewMessage(conversationId, message);
+
+    return message;
   }
 
   private async resolveSenderName(email: string): Promise<string> {
@@ -157,4 +158,3 @@ export class ChatController {
     return this.chatRepo.getConversationAsync(conversationId);
   }
 }
-

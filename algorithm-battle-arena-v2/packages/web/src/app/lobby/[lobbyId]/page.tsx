@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input";
 import { lobbiesApi, matchesApi } from "@/lib/api";
 import { lobbySocket } from "@/lib/lobbySocket";
 import { useAuth } from "@/lib/auth-context";
-import { Crown, Copy, LogOut, Play, Users, Settings, MessageCircle, XCircle, Shield, Swords } from "lucide-react";
+import { Crown, Copy, Loader2, LogOut, Play, Users, Settings, MessageCircle, XCircle, Shield, Swords } from "lucide-react";
 
 export default function LobbyInstancePage() {
   const params = useParams();
@@ -24,6 +24,7 @@ export default function LobbyInstancePage() {
   const [matchDuration, setMatchDuration] = useState(600);
   const [showChat, setShowChat] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [isStarting, setIsStarting] = useState(false);
 
   useEffect(() => {
     if (!lobbyId) return;
@@ -39,9 +40,21 @@ export default function LobbyInstancePage() {
   const isHost = lobby?.hostEmail === user?.email;
 
   const handleStart = async () => {
-    if (!lobby) return;
-    try { await matchesApi.start(lobby.lobbyId, { problemIds: selectedProblems.map((p: any) => p.problemId), durationSec: matchDuration }); }
-    catch { alert("Failed to start match"); }
+    if (!lobby || isStarting) return;
+    if (selectedProblems.length === 0) {
+      alert("Select at least one problem before starting the match.");
+      return;
+    }
+    setIsStarting(true);
+    try {
+      const res = await matchesApi.start(lobby.lobbyId, { problemIds: selectedProblems.map((p: any) => p.problemId), durationSec: matchDuration });
+      const nextMatchId = res.data?.matchId;
+      if (typeof nextMatchId === "number") router.push(`/match/${nextMatchId}`);
+    }
+    catch (err: any) {
+      setIsStarting(false);
+      alert(err?.response?.data?.message || "Failed to start match");
+    }
   };
 
   const handleLeave = async () => { await lobbiesApi.leave(parseInt(lobbyId)); router.push("/lobby"); };
@@ -86,8 +99,9 @@ export default function LobbyInstancePage() {
                   <Button variant="outline" className="bg-white" onClick={() => setShowSettings(!showSettings)}>
                     <Settings className="size-4" /> Settings
                   </Button>
-                  <Button onClick={handleStart} className="bg-primary hover:bg-[#C62828]">
-                    <Play className="size-4" /> Start Match
+                  <Button onClick={handleStart} disabled={isStarting} className="bg-primary hover:bg-[#C62828]">
+                    {isStarting ? <Loader2 className="size-4 animate-spin" /> : <Play className="size-4" />}
+                    {isStarting ? "Starting..." : "Start Match"}
                   </Button>
                 </>
               )}
@@ -116,7 +130,7 @@ export default function LobbyInstancePage() {
                   <Input type="number" value={matchDuration} onChange={(e) => setMatchDuration(parseInt(e.target.value) || 600)} />
                 </div>
               </div>
-              <Button onClick={() => setShowProblems(true)} className="bg-primary hover:bg-[#C62828]">
+              <Button onClick={() => setShowProblems(true)} disabled={isStarting} className="bg-primary hover:bg-[#C62828]">
                 Select Problems ({selectedProblems.length})
               </Button>
             </Card>

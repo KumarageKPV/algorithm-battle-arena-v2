@@ -38,6 +38,22 @@ export class MatchRepoService {
     return match;
   }
 
+  async getMatchProblems(matchId: number) {
+    const matchProblems = await this.prisma.matchProblem.findMany({
+      where: { matchId },
+      orderBy: { matchProblemId: 'asc' },
+      include: {
+        problem: {
+          include: {
+            testCases: { orderBy: { testCaseId: 'asc' } },
+          },
+        },
+      },
+    });
+
+    return matchProblems.map((mp) => mp.problem);
+  }
+
   async getMatchLeaderboard(matchId: number): Promise<LeaderboardEntryDto[]> {
     // PostgreSQL: ISNULL → COALESCE, ROW_NUMBER window function works the same
     const results = await this.prisma.$queryRaw<LeaderboardEntryDto[]>`
@@ -112,4 +128,3 @@ export class MatchRepoService {
     return results;
   }
 }
-
