@@ -16,8 +16,7 @@ export default function LobbyRoute() {
     <ProtectedRoute allowedRoles={["Student", "Teacher", "Admin"]}>
       <AppShell role={shellRole} current="lobby">
         <PremiumLobbyPage
-          onEnter={() => router.push("/match")}
-          onHost={() => router.push("/host-battle")}
+          onEnter={(lobbyId) => router.push(`/lobby/${lobbyId}`)}
         />
       </AppShell>
     </ProtectedRoute>

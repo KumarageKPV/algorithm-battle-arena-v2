@@ -4,13 +4,17 @@ import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Search, Swords, Filter, Users, Eye, ArrowRight, Flame, Plus, ArrowUpDown } from "lucide-react";
 import { lobbiesApi } from "../../lib/api";
+import CreateLobbyModal from "../CreateLobbyModal";
 
 const FILTERS = ["All", "1v1", "Team", "Solo", "Ranked", "Casual"];
 
-export function LobbyPage({ onEnter, onHost }: { onEnter: () => void; onHost: () => void }) {
+export function LobbyPage({ onEnter }: { onEnter: (lobbyId: number) => void }) {
   const [active, setActive] = useState("All");
   const [lobbies, setLobbies] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [joiningId, setJoiningId] = useState<string | number | null>(null);
+  const [showCreate, setShowCreate] = useState(false);
+  const [creating, setCreating] = useState(false);
 
   useEffect(() => {
     let activeRequest = true;
@@ -36,6 +40,8 @@ export function LobbyPage({ onEnter, onHost }: { onEnter: () => void; onHost: ()
     const joined = lobby.participants?.length ?? 0;
     return {
       id: lobby.lobbyId ?? lobby.lobbyCode ?? index,
+      lobbyId: lobby.lobbyId,
+      lobbyCode: lobby.lobbyCode,
       title: lobby.lobbyName ?? "Open lobby",
       mode: lobby.mode ?? "1v1",
       challenge: lobby.difficulty ?? "Medium",
@@ -48,6 +54,38 @@ export function LobbyPage({ onEnter, onHost }: { onEnter: () => void; onHost: ()
     };
   }), [lobbies]);
 
+  const handleJoin = async (lobby: any) => {
+    if (!lobby?.lobbyCode) return;
+    setJoiningId(lobby.id);
+    try {
+      const res = await lobbiesApi.join(String(lobby.lobbyCode));
+      const nextId = res.data?.lobbyId ?? lobby.lobbyId;
+      if (typeof nextId === "number") {
+        onEnter(nextId);
+      }
+    } catch {
+      // noop
+    } finally {
+      setJoiningId(null);
+    }
+  };
+
+  const handleCreate = async (data: { name: string; maxPlayers: number; mode: string; difficulty: string }) => {
+    setCreating(true);
+    try {
+      const res = await lobbiesApi.create(data);
+      const nextId = res.data?.lobbyId ?? res.data?.lobby?.lobbyId;
+      if (typeof nextId === "number") {
+        setShowCreate(false);
+        onEnter(nextId);
+      }
+    } catch {
+      // noop
+    } finally {
+      setCreating(false);
+    }
+  };
+
   return (
     <div className="space-y-5 p-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
@@ -58,7 +96,7 @@ export function LobbyPage({ onEnter, onHost }: { onEnter: () => void; onHost: ()
         </div>
         <div className="flex gap-2">
           <Button variant="outline" className="bg-white"><Filter className="size-4" /> Filters</Button>
-          <Button onClick={onHost} className="bg-primary hover:bg-[#C62828]"><Plus className="size-4" /> Host battle</Button>
+          <Button onClick={() => setShowCreate(true)} className="bg-primary hover:bg-[#C62828]"><Plus className="size-4" /> Host battle</Button>
         </div>
       </div>
 
@@ -112,8 +150,13 @@ export function LobbyPage({ onEnter, onHost }: { onEnter: () => void; onHost: ()
 
               <div className="flex items-center justify-between border-t border-border px-4 py-3">
                 <div className="text-xs text-muted-foreground">{l.challenge}</div>
-                <Button size="sm" className="bg-primary hover:bg-[#C62828]" onClick={onEnter} disabled={full}>
-                  {full ? "Full" : "Join"} <ArrowRight className="size-3.5" />
+                <Button
+                  size="sm"
+                  className="bg-primary hover:bg-[#C62828]"
+                  onClick={() => handleJoin(l)}
+                  disabled={full || joiningId === l.id}
+                >
+                  {full ? "Full" : joiningId === l.id ? "Joining" : "Join"} <ArrowRight className="size-3.5" />
                 </Button>
               </div>
             </Card>
@@ -125,6 +168,11 @@ export function LobbyPage({ onEnter, onHost }: { onEnter: () => void; onHost: ()
           </Card>
         )}
       </div>
+      <CreateLobbyModal
+        isOpen={showCreate}
+        onClose={() => !creating && setShowCreate(false)}
+        onCreate={handleCreate}
+      />
     </div>
   );
 }

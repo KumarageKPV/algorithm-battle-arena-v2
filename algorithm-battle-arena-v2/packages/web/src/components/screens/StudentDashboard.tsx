@@ -1,8 +1,9 @@
 import { Card, Chip, ProgressRing, Section, StatTile, XPBar } from "../primitives/Bits";
 import { Button } from "../ui/button";
+import { Input } from "../ui/input";
 import { Avatar, AvatarFallback } from "../ui/avatar";
 import { Calendar, Play, Swords, Zap, Crown, Target, LogOut } from "lucide-react";
-import { statisticsApi } from "../../lib/api";
+import { statisticsApi, friendsApi, studentsApi, teachersApi } from "../../lib/api";
 import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 
@@ -37,10 +38,65 @@ type LeaderRow = {
   winRate?: number;
 };
 
+type Friend = {
+  studentId: number;
+  fullName?: string;
+  email?: string;
+  isOnline?: boolean;
+  friendsSince?: string;
+};
+
+type Teacher = {
+  teacherId: number;
+  firstName?: string;
+  lastName?: string;
+  fullName?: string;
+  email?: string;
+};
+
 export function StudentDashboard({ onNav }: { onNav: (v: any) => void }) {
   const [userStats, setUserStats] = useState<UserStats | null>(null);
   const [leaders, setLeaders] = useState<LeaderRow[]>([]);
+  const [friends, setFriends] = useState<Friend[]>([]);
+  const [friendSearch, setFriendSearch] = useState("");
+  const [friendSearchResults, setFriendSearchResults] = useState<any[]>([]);
+  const [receivedRequests, setReceivedRequests] = useState<any[]>([]);
+  const [sentRequests, setSentRequests] = useState<any[]>([]);
+  const [acceptedTeachers, setAcceptedTeachers] = useState<Teacher[]>([]);
+  const [teacherDirectory, setTeacherDirectory] = useState<Teacher[]>([]);
+  const [teacherSearch, setTeacherSearch] = useState("");
+  const [pendingTeacherIds, setPendingTeacherIds] = useState<Set<number>>(new Set());
   const { logout } = useAuth();
+
+  const refreshFriends = async () => {
+    const [friendsRes, receivedRes, sentRes] = await Promise.allSettled([
+      friendsApi.getFriends(),
+      friendsApi.getReceived(),
+      friendsApi.getSent(),
+    ]);
+    if (friendsRes.status === "fulfilled") {
+      setFriends(Array.isArray(friendsRes.value.data) ? friendsRes.value.data : []);
+    }
+    if (receivedRes.status === "fulfilled") {
+      setReceivedRequests(Array.isArray(receivedRes.value.data) ? receivedRes.value.data : []);
+    }
+    if (sentRes.status === "fulfilled") {
+      setSentRequests(Array.isArray(sentRes.value.data) ? sentRes.value.data : []);
+    }
+  };
+
+  const refreshTeachers = async () => {
+    const [acceptedRes, directoryRes] = await Promise.allSettled([
+      studentsApi.getTeachers(),
+      teachersApi.getAll(),
+    ]);
+    if (acceptedRes.status === "fulfilled") {
+      setAcceptedTeachers(Array.isArray(acceptedRes.value.data) ? acceptedRes.value.data : []);
+    }
+    if (directoryRes.status === "fulfilled") {
+      setTeacherDirectory(Array.isArray(directoryRes.value.data) ? directoryRes.value.data : []);
+    }
+  };
 
   useEffect(() => {
     let active = true;
@@ -57,12 +113,87 @@ export function StudentDashboard({ onNav }: { onNav: (v: any) => void }) {
         if (!active) return;
         setLeaders([]);
       }
+
+      if (!active) return;
+      await Promise.all([refreshFriends(), refreshTeachers()]);
     };
     load();
     return () => {
       active = false;
     };
   }, []);
+
+  const acceptedTeacherIds = useMemo(() => new Set(acceptedTeachers.map((t) => t.teacherId)), [acceptedTeachers]);
+
+  const handleFriendSearch = async () => {
+    const q = friendSearch.trim();
+    if (!q) {
+      setFriendSearchResults([]);
+      return;
+    }
+    try {
+      const res = await friendsApi.search(q);
+      setFriendSearchResults(Array.isArray(res.data) ? res.data : []);
+    } catch {
+      setFriendSearchResults([]);
+    }
+  };
+
+  const handleSendRequest = async (studentId: number) => {
+    try {
+      await friendsApi.sendRequest(studentId);
+      await refreshFriends();
+    } catch {
+      // noop
+    }
+  };
+
+  const handleAcceptRequest = async (requestId: number) => {
+    try {
+      await friendsApi.accept(requestId);
+      await refreshFriends();
+    } catch {
+      // noop
+    }
+  };
+
+  const handleRejectRequest = async (requestId: number) => {
+    try {
+      await friendsApi.reject(requestId);
+      await refreshFriends();
+    } catch {
+      // noop
+    }
+  };
+
+  const handleRemoveFriend = async (friendId: number) => {
+    try {
+      await friendsApi.remove(friendId);
+      await refreshFriends();
+    } catch {
+      // noop
+    }
+  };
+
+  const handleRequestTeacher = async (teacherId: number) => {
+    try {
+      await studentsApi.requestTeacher(teacherId);
+      setPendingTeacherIds((prev) => new Set(prev).add(teacherId));
+    } catch {
+      // noop
+    }
+  };
+
+  const filteredTeachers = useMemo(() => {
+    const q = teacherSearch.trim().toLowerCase();
+    const pool = teacherDirectory.filter((t) => !acceptedTeacherIds.has(t.teacherId));
+    if (!q) return pool;
+    return pool.filter((t) =>
+      `${t.firstName || ""} ${t.lastName || ""} ${t.fullName || ""} ${t.email || ""}`
+        .toLowerCase()
+        .includes(q),
+    );
+  }, [teacherDirectory, teacherSearch, acceptedTeacherIds]);
 
   const rivals = useMemo(() => leaders.slice(0, 4).map((row, index) => ({
     id: row.participantEmail || `${index}`,
@@ -165,10 +296,135 @@ export function StudentDashboard({ onNav }: { onNav: (v: any) => void }) {
             </Card>
           </Section>
 
+          <Section title="Teachers" kicker="MENTORS">
+            <Card className="space-y-3 p-4">
+              <div>
+                <div className="font-mono text-[10px] tracking-widest text-muted-foreground">ACCEPTED TEACHERS</div>
+                {acceptedTeachers.length ? (
+                  <div className="mt-2 space-y-2">
+                    {acceptedTeachers.map((t) => (
+                      <div key={t.teacherId} className="flex items-center gap-2 rounded-lg border border-border bg-white px-3 py-2">
+                        <Avatar className="size-7"><AvatarFallback className="bg-primary/10 text-primary text-[10px]">{(t.firstName || t.fullName || "T").slice(0, 2).toUpperCase()}</AvatarFallback></Avatar>
+                        <div className="min-w-0 flex-1">
+                          <div className="text-sm font-medium truncate">{t.fullName || `${t.firstName || ""} ${t.lastName || ""}`.trim() || t.email}</div>
+                          <div className="font-mono text-[10px] text-muted-foreground truncate">{t.email}</div>
+                        </div>
+                        <Chip tone="success">Active</Chip>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="mt-2 text-xs text-muted-foreground">No accepted teachers yet.</div>
+                )}
+              </div>
+
+              <div className="border-t border-border pt-3">
+                <div className="font-mono text-[10px] tracking-widest text-muted-foreground">REQUEST A TEACHER</div>
+                <div className="mt-2 flex gap-2">
+                  <Input value={teacherSearch} onChange={(e) => setTeacherSearch(e.target.value)} placeholder="Search teachers" className="h-9 bg-[var(--input-background)]" />
+                  <Button size="sm" variant="outline" className="bg-white" onClick={() => setTeacherSearch(teacherSearch.trim())}>Filter</Button>
+                </div>
+                <div className="mt-3 space-y-2">
+                  {filteredTeachers.length ? filteredTeachers.slice(0, 5).map((t) => (
+                    <div key={t.teacherId} className="flex items-center gap-2 rounded-lg border border-border bg-white px-3 py-2">
+                      <Avatar className="size-7"><AvatarFallback className="bg-primary/10 text-primary text-[10px]">{(t.firstName || t.fullName || "T").slice(0, 2).toUpperCase()}</AvatarFallback></Avatar>
+                      <div className="min-w-0 flex-1">
+                        <div className="text-sm font-medium truncate">{t.fullName || `${t.firstName || ""} ${t.lastName || ""}`.trim() || t.email}</div>
+                        <div className="font-mono text-[10px] text-muted-foreground truncate">{t.email}</div>
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-7 px-2 text-xs"
+                        disabled={pendingTeacherIds.has(t.teacherId)}
+                        onClick={() => handleRequestTeacher(t.teacherId)}
+                      >
+                        {pendingTeacherIds.has(t.teacherId) ? "Requested" : "Request"}
+                      </Button>
+                    </div>
+                  )) : (
+                    <div className="text-xs text-muted-foreground">No teachers found.</div>
+                  )}
+                </div>
+              </div>
+            </Card>
+          </Section>
+
+          <Section title="Friends" kicker="SOCIAL">
+            <Card className="space-y-3 p-4">
+              <div>
+                <div className="flex gap-2">
+                  <Input value={friendSearch} onChange={(e) => setFriendSearch(e.target.value)} placeholder="Find friends" className="h-9 bg-[var(--input-background)]" />
+                  <Button size="sm" variant="outline" className="bg-white" onClick={handleFriendSearch}>Search</Button>
+                </div>
+                {friendSearchResults.length > 0 && (
+                  <div className="mt-2 space-y-2">
+                    {friendSearchResults.slice(0, 5).map((s: any) => (
+                      <div key={s.studentId} className="flex items-center gap-2 rounded-lg border border-border bg-white px-3 py-2">
+                        <Avatar className="size-7"><AvatarFallback className="bg-primary/10 text-primary text-[10px]">{`${s.firstName || ""}${s.lastName || ""}`.slice(0, 2).toUpperCase()}</AvatarFallback></Avatar>
+                        <div className="min-w-0 flex-1">
+                          <div className="text-sm font-medium truncate">{`${s.firstName || ""} ${s.lastName || ""}`.trim() || s.email}</div>
+                          <div className="font-mono text-[10px] text-muted-foreground truncate">{s.email}</div>
+                        </div>
+                        <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => handleSendRequest(s.studentId)}>
+                          Add
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="border-t border-border pt-3">
+                <div className="font-mono text-[10px] tracking-widest text-muted-foreground">PENDING REQUESTS</div>
+                <div className="mt-2 space-y-2">
+                  {receivedRequests.length ? receivedRequests.slice(0, 4).map((r: any) => (
+                    <div key={r.requestId} className="flex items-center gap-2 rounded-lg border border-border bg-white px-3 py-2">
+                      <Avatar className="size-7"><AvatarFallback className="bg-primary/10 text-primary text-[10px]">{`${r.sender?.firstName || ""}${r.sender?.lastName || ""}`.slice(0, 2).toUpperCase() || "FR"}</AvatarFallback></Avatar>
+                      <div className="min-w-0 flex-1">
+                        <div className="text-sm font-medium truncate">{`${r.sender?.firstName || ""} ${r.sender?.lastName || ""}`.trim() || r.sender?.email || "Request"}</div>
+                        <div className="font-mono text-[10px] text-muted-foreground truncate">{r.sender?.email}</div>
+                      </div>
+                      <div className="flex gap-1">
+                        <Button size="sm" className="h-7 px-2 text-xs" onClick={() => handleAcceptRequest(r.requestId)}>Accept</Button>
+                        <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => handleRejectRequest(r.requestId)}>Reject</Button>
+                      </div>
+                    </div>
+                  )) : (
+                    <div className="text-xs text-muted-foreground">No pending requests.</div>
+                  )}
+                </div>
+                {sentRequests.length > 0 && (
+                  <div className="mt-2 text-[11px] text-muted-foreground">Sent {sentRequests.length} request{sentRequests.length === 1 ? "" : "s"}.</div>
+                )}
+              </div>
+
+              <div className="border-t border-border pt-3">
+                <div className="font-mono text-[10px] tracking-widest text-muted-foreground">YOUR FRIENDS</div>
+                <div className="mt-2 space-y-2">
+                  {friends.length ? friends.slice(0, 5).map((f) => (
+                    <div key={f.studentId} className="flex items-center gap-2 rounded-lg border border-border bg-white px-3 py-2">
+                      <Avatar className="size-7"><AvatarFallback className="bg-primary/10 text-primary text-[10px]">{(f.fullName || f.email || "F").slice(0, 2).toUpperCase()}</AvatarFallback></Avatar>
+                      <div className="min-w-0 flex-1">
+                        <div className="text-sm font-medium truncate">{f.fullName || f.email}</div>
+                        <div className="font-mono text-[10px] text-muted-foreground truncate">{f.email}</div>
+                      </div>
+                      <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => handleRemoveFriend(f.studentId)}>
+                        Remove
+                      </Button>
+                    </div>
+                  )) : (
+                    <div className="text-xs text-muted-foreground">No friends yet.</div>
+                  )}
+                </div>
+              </div>
+            </Card>
+          </Section>
+
           <Section title="Nearest rivals" kicker="IN STRIKING DISTANCE">
             <Card>
               <div className="divide-y divide-border">
-                {(rivals.length ? rivals : [{ id: "fallback", name: "No rivals yet", tier: "", streak: 0, rating: 0 }]).map((p, i) => (
+                {rivals.map((p, i) => (
                   <div key={p.id} className="flex items-center gap-3 px-4 py-3">
                     <div className="w-5 text-center font-mono text-[11px] tabular-nums text-muted-foreground">{i === 1 ? "▲" : "·"}</div>
                     <Avatar className="size-8"><AvatarFallback className="bg-primary/10 text-primary text-[11px]">{p.name.split(" ").map(s => s[0]).join("")}</AvatarFallback></Avatar>
