@@ -2,10 +2,10 @@ import { Card, Chip, ProgressRing, Section, StatTile, XPBar } from "../primitive
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Avatar, AvatarFallback } from "../ui/avatar";
-import { Calendar, Play, Swords, Zap, Crown, Target, LogOut } from "lucide-react";
+import { Calendar, Play, Swords, Zap, Crown, Target } from "lucide-react";
 import { statisticsApi, friendsApi, studentsApi, teachersApi } from "../../lib/api";
 import { useEffect, useMemo, useState } from "react";
-import { useAuth } from "@/lib/auth-context";
+import CreateLobbyModal from "../CreateLobbyModal";
 
 const BADGES = [
   { t: "Graph Tamer", c: "from-[#D0E6F4] to-[#EAF4FC]", i: "🛡" },
@@ -54,7 +54,10 @@ type Teacher = {
   email?: string;
 };
 
-export function StudentDashboard({ onNav }: { onNav: (v: any) => void }) {
+export function StudentDashboard({ onNav, onCreateLobby }: {
+  onNav: (v: any) => void;
+  onCreateLobby: (data: { name: string; maxPlayers: number; mode: string; difficulty: string }) => Promise<void>;
+}) {
   const [userStats, setUserStats] = useState<UserStats | null>(null);
   const [leaders, setLeaders] = useState<LeaderRow[]>([]);
   const [friends, setFriends] = useState<Friend[]>([]);
@@ -66,7 +69,8 @@ export function StudentDashboard({ onNav }: { onNav: (v: any) => void }) {
   const [teacherDirectory, setTeacherDirectory] = useState<Teacher[]>([]);
   const [teacherSearch, setTeacherSearch] = useState("");
   const [pendingTeacherIds, setPendingTeacherIds] = useState<Set<number>>(new Set());
-  const { logout } = useAuth();
+  const [showCreateLobby, setShowCreateLobby] = useState(false);
+  const [creatingLobby, setCreatingLobby] = useState(false);
 
   const refreshFriends = async () => {
     const [friendsRes, receivedRes, sentRes] = await Promise.allSettled([
@@ -203,8 +207,18 @@ export function StudentDashboard({ onNav }: { onNav: (v: any) => void }) {
     rating: row.totalScore ?? 0,
   })), [leaders]);
 
+  const handleCreateLobby = async (data: { name: string; maxPlayers: number; mode: string; difficulty: string }) => {
+    setCreatingLobby(true);
+    try {
+      await onCreateLobby(data);
+      setShowCreateLobby(false);
+    } finally {
+      setCreatingLobby(false);
+    }
+  };
+
   return (
-    <div className="space-y-6 p-6">
+    <div className="mx-auto w-full max-w-7xl space-y-6 px-5 py-6 sm:px-6 lg:px-8">
       {/* Hero card */}
       <div className="relative overflow-hidden rounded-2xl border border-border bg-gradient-to-br from-[#FFF8EF] via-[#FFFEFB] to-[#F4E8D6]/50 p-6">
         <div className="absolute -right-12 -top-12 size-60 rounded-full bg-[#E53935]/8 blur-2xl" />
@@ -217,7 +231,7 @@ export function StudentDashboard({ onNav }: { onNav: (v: any) => void }) {
             <div className="mt-3 max-w-md"><XPBar value={1320} max={1800} label="SR PROGRESS" /></div>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Button onClick={() => onNav("lobby")} className="h-11 gap-2 bg-primary px-5 hover:bg-[#C62828]"><Play className="size-4 fill-white" /> Quick match</Button>
+            <Button onClick={() => setShowCreateLobby(true)} className="h-11 gap-2 bg-primary px-5 hover:bg-[#C62828]"><Play className="size-4 fill-white" /> Quick match</Button>
             <Button onClick={() => onNav("host")} variant="outline" className="h-11 gap-2 bg-white px-5"><Swords className="size-4 text-primary" /> Host a battle</Button>
           </div>
         </div>
@@ -230,8 +244,8 @@ export function StudentDashboard({ onNav }: { onNav: (v: any) => void }) {
         <StatTile label="AVG. SUBMIT" value="—" sub="Awaiting data" accent="warning" />
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-[1.4fr_1fr]">
-        <div className="space-y-6">
+      <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(360px,420px)]">
+        <div className="min-w-0 space-y-6">
           <Section title="Recent matches" kicker="LAST 7 DAYS" action={<a className="text-xs text-primary">View history →</a>}>
             <Card>
               <div className="divide-y divide-border">
@@ -256,7 +270,7 @@ export function StudentDashboard({ onNav }: { onNav: (v: any) => void }) {
                 { t: "Class Tournament · CS204-A", d: "Tomorrow · 14:00", host: "Prof. Lin Kao", chip: "primary" as const, c: "Cup" },
                 { t: "Recursion Rumble", d: "Fri · 19:30", host: "Open · 24 joined", chip: "tension" as const, c: "Team" },
               ].map((e, i) => (
-                <Card key={i} className="overflow-hidden">
+                <Card key={i} className="flex h-full flex-col overflow-hidden">
                   <div className="flex items-center gap-3 border-b border-border bg-gradient-to-br from-[#FFF8EF]/70 to-transparent p-4">
                     <div className="grid size-10 place-items-center rounded-lg bg-white shadow-sm"><Calendar className="size-4 text-primary" /></div>
                     <div className="min-w-0 flex-1">
@@ -265,7 +279,7 @@ export function StudentDashboard({ onNav }: { onNav: (v: any) => void }) {
                     </div>
                     <Chip tone={e.chip}>{e.c}</Chip>
                   </div>
-                  <div className="flex items-center justify-between p-3">
+                  <div className="mt-auto flex items-center justify-between p-3">
                     <span className="text-xs text-muted-foreground">{e.d}</span>
                     <Button size="sm" variant="outline">Set reminder</Button>
                   </div>
@@ -275,7 +289,7 @@ export function StudentDashboard({ onNav }: { onNav: (v: any) => void }) {
           </Section>
         </div>
 
-        <div className="space-y-6">
+        <div className="min-w-0 space-y-6">
           <Section title="Badges" kicker="EARNED · 24 OF 60">
             <Card className="p-4">
               <div className="grid grid-cols-5 gap-2">
@@ -346,7 +360,10 @@ export function StudentDashboard({ onNav }: { onNav: (v: any) => void }) {
               </div>
             </Card>
           </Section>
+        </div>
+      </div>
 
+      <div className="grid items-start gap-6 lg:grid-cols-2 xl:grid-cols-3">
           <Section title="Friends" kicker="SOCIAL">
             <Card className="space-y-3 p-4">
               <div>
@@ -459,8 +476,13 @@ export function StudentDashboard({ onNav }: { onNav: (v: any) => void }) {
               ))}
             </Card>
           </Section>
-        </div>
       </div>
+      <CreateLobbyModal
+        isOpen={showCreateLobby}
+        isCreating={creatingLobby}
+        onClose={() => !creatingLobby && setShowCreateLobby(false)}
+        onCreate={handleCreateLobby}
+      />
     </div>
   );
 }

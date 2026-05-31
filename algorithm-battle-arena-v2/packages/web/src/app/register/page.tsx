@@ -36,7 +36,6 @@ export default function RegisterPage() {
             : "/student-dashboard";
         router.push(next);
       }}
-      onBack={() => router.push("/")}
     />
   );
 }

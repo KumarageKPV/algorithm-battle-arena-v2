@@ -3,10 +3,15 @@ import { Logo } from "../brand/Logo";
 import { cn } from "../ui/utils";
 import {
   Bell, Search, Swords, Trophy, Users, LayoutDashboard, MessageSquare,
-  Plus, Flame, ChevronRight, Settings, Shield, GraduationCap, BookOpen, LogOut,
+  Flame, ChevronRight, Shield, BookOpen, LogOut, UserRound,
 } from "lucide-react";
 import { Avatar, AvatarFallback } from "../ui/avatar";
-import { Badge } from "../ui/badge";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "../ui/dropdown-menu";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 
@@ -62,15 +67,14 @@ export function AppShell({
   return (
     <div className={cn("flex min-h-screen w-full", hud ? "bg-[var(--surface)]" : "bg-[var(--surface)]")}>
       {/* Sidebar */}
-      <aside className="hidden w-[248px] shrink-0 flex-col border-r border-border bg-white/80 backdrop-blur md:flex">
+      <aside className="sticky top-0 hidden h-screen w-[248px] shrink-0 flex-col overflow-hidden border-r border-border bg-white/80 backdrop-blur md:flex">
         <div className="px-5 pt-5 pb-4"><Logo /></div>
         <div className="px-3">
-          <button className="group flex w-full items-center justify-between rounded-lg border border-border bg-white px-3 py-2 text-left text-sm text-muted-foreground transition hover:border-primary/30 hover:text-foreground">
+          <button className="group flex w-full items-center rounded-lg border border-border bg-white px-3 py-2 text-left text-sm text-muted-foreground transition hover:border-primary/30 hover:text-foreground">
             <span className="flex items-center gap-2"><Search className="size-3.5" /> Quick search</span>
-            <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">⌘K</kbd>
           </button>
         </div>
-        <nav className="mt-4 flex-1 px-3">
+        <nav className="mt-4 min-h-0 flex-1 px-3">
           <div className="px-2 pb-2 font-mono text-[10px] tracking-[0.18em] text-muted-foreground">
             {role.toUpperCase()} · WORKSPACE
           </div>
@@ -113,18 +117,6 @@ export function AppShell({
           </div>
         </nav>
 
-        <div className="border-t border-border p-3">
-          <div className="flex w-full items-center gap-2.5 rounded-lg px-2 py-2">
-            <Avatar className="size-8 ring-2 ring-primary/20"><AvatarFallback className="bg-primary text-white">{user?.fullName?.split(" ").map(x => x[0]).join("") || "ME"}</AvatarFallback></Avatar>
-            <div className="flex-1 text-left min-w-0">
-              <div className="text-sm font-medium leading-tight truncate">{user?.fullName || "Aurelia Vance"}</div>
-              <div className="font-mono text-[10px] text-muted-foreground truncate">{user?.email || "Diamond II"}</div>
-            </div>
-            <button onClick={() => { logout(); router.push("/"); }} className="grid size-7 place-items-center rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors" title="Sign Out">
-               <LogOut className="size-4" />
-            </button>
-          </div>
-        </div>
       </aside>
 
       {/* Main */}
@@ -137,20 +129,31 @@ export function AppShell({
             <span className="font-medium text-foreground capitalize">{labelFor(current)}</span>
           </div>
           <div className="ml-auto flex items-center gap-2">
-            <RoleSwitcher role={role} onChange={(r) => {
-               const base = r === "student" ? "/student-dashboard" : r === "teacher" ? "/teacher" : "/admin";
-               router.push(base);
-            }} />
-            <button className="hidden h-9 items-center gap-1.5 rounded-lg border border-border bg-white px-2.5 text-sm hover:bg-muted md:flex">
-              <Plus className="size-4 text-primary" /> New
-            </button>
             <button className="relative grid size-9 place-items-center rounded-lg border border-border bg-white hover:bg-muted">
               <Bell className="size-4" />
               <span className="absolute right-1.5 top-1.5 size-1.5 rounded-full bg-[var(--tension)]" />
             </button>
-            <Badge className="hidden gap-1 border-success/30 bg-success/10 text-success md:inline-flex" variant="outline">
-              <span className="size-1.5 rounded-full bg-success animate-pulse" />Online · 312
-            </Badge>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button className="grid size-9 place-items-center rounded-lg border border-border bg-white transition hover:bg-muted" aria-label="Open profile menu">
+                  <Avatar className="size-7 ring-2 ring-primary/20">
+                    <AvatarFallback className="bg-primary text-xs text-white">
+                      {user?.fullName?.split(" ").map(x => x[0]).join("") || "ME"}
+                    </AvatarFallback>
+                  </Avatar>
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-44">
+                <DropdownMenuItem>
+                  <UserRound className="size-4" />
+                  View profile
+                </DropdownMenuItem>
+                <DropdownMenuItem variant="destructive" onSelect={() => { logout(); router.push("/"); }}>
+                  <LogOut className="size-4" />
+                  Sign out
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </header>
         <main className="min-w-0 flex-1">{children}</main>
@@ -167,25 +170,4 @@ function labelFor(v: ViewId) {
     lobbyInstance: "Lobby", match: "Live match", leaderboard: "Leaderboard",
     manage: "Students", chat: "Messages",
   }[v];
-}
-
-function RoleSwitcher({ role, onChange }: { role: string; onChange: (r: "student" | "teacher" | "admin") => void }) {
-  const items: ("student" | "teacher" | "admin")[] = ["student", "teacher", "admin"];
-  const icons = { student: GraduationCap, teacher: BookOpen, admin: Shield };
-  return (
-    <div className="hidden rounded-lg border border-border bg-white p-0.5 md:flex">
-      {items.map((r) => {
-        const Icon = icons[r];
-        const active = role === r;
-        return (
-          <button key={r} onClick={() => onChange(r)} className={cn(
-            "flex h-7 items-center gap-1.5 rounded-md px-2 text-xs capitalize transition",
-            active ? "bg-primary text-white shadow-sm" : "text-muted-foreground hover:text-foreground"
-          )}>
-            <Icon className="size-3.5" />{r}
-          </button>
-        );
-      })}
-    </div>
-  );
 }

@@ -22,7 +22,6 @@ export default function LoginPage() {
             : "/student-dashboard";
         router.push(next);
       }}
-      onBack={() => router.push("/")}
     />
   );
 }

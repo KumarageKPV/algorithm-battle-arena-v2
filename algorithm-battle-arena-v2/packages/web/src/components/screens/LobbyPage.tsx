@@ -5,6 +5,7 @@ import { Input } from "../ui/input";
 import { Search, Swords, Filter, Users, Eye, ArrowRight, Flame, Plus, ArrowUpDown } from "lucide-react";
 import { lobbiesApi } from "../../lib/api";
 import CreateLobbyModal from "../CreateLobbyModal";
+import { useAuth } from "@/lib/auth-context";
 
 const FILTERS = ["All", "1v1", "Team", "Solo", "Ranked", "Casual"];
 
@@ -15,6 +16,7 @@ export function LobbyPage({ onEnter }: { onEnter: (lobbyId: number) => void }) {
   const [joiningId, setJoiningId] = useState<string | number | null>(null);
   const [showCreate, setShowCreate] = useState(false);
   const [creating, setCreating] = useState(false);
+  const { user } = useAuth();
 
   useEffect(() => {
     let activeRequest = true;
@@ -51,11 +53,17 @@ export function LobbyPage({ onEnter }: { onEnter: (lobbyId: number) => void }) {
       capacity: lobby.maxPlayers ?? 0,
       status: lobby.status ?? "Open",
       host: lobby.hostEmail ?? "Host",
+      participants: lobby.participants ?? [],
     };
   }), [lobbies]);
 
   const handleJoin = async (lobby: any) => {
     if (!lobby?.lobbyCode) return;
+    const alreadyInLobby = lobby.participants?.some((p: any) => p.participantEmail === user?.email);
+    if (alreadyInLobby && typeof lobby.lobbyId === "number") {
+      onEnter(lobby.lobbyId);
+      return;
+    }
     setJoiningId(lobby.id);
     try {
       const res = await lobbiesApi.join(String(lobby.lobbyCode));
@@ -120,6 +128,7 @@ export function LobbyPage({ onEnter }: { onEnter: (lobbyId: number) => void }) {
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         {(loading ? [] : cards).map(l => {
           const full = l.joined >= l.capacity && l.capacity > 0;
+          const alreadyInLobby = l.participants?.some((p: any) => p.participantEmail === user?.email);
           const filling = l.capacity > 0 ? l.joined / l.capacity > 0.6 : false;
           const statusTone: any = l.status === "Live" ? "tension" : full ? "danger" : filling ? "warning" : "success";
           const diffTone: any = l.difficulty === "Easy" ? "success" : l.difficulty === "Medium" ? "warning" : "danger";
@@ -154,9 +163,9 @@ export function LobbyPage({ onEnter }: { onEnter: (lobbyId: number) => void }) {
                   size="sm"
                   className="bg-primary hover:bg-[#C62828]"
                   onClick={() => handleJoin(l)}
-                  disabled={full || joiningId === l.id}
+                  disabled={(!alreadyInLobby && full) || joiningId === l.id}
                 >
-                  {full ? "Full" : joiningId === l.id ? "Joining" : "Join"} <ArrowRight className="size-3.5" />
+                  {alreadyInLobby ? "Enter" : full ? "Full" : joiningId === l.id ? "Joining" : "Join"} <ArrowRight className="size-3.5" />
                 </Button>
               </div>
             </Card>

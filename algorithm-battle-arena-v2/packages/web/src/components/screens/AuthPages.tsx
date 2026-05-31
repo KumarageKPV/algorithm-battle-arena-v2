@@ -1,16 +1,8 @@
 import { useMemo, useState } from "react";
-import { Logo } from "../brand/Logo";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
-import { Chip } from "../primitives/Bits";
-import { ArrowRight, Github, Chrome, Apple, ShieldCheck, Sparkles, Check, Swords, Trophy, Zap } from "lucide-react";
-
-const STATS = [
-  { icon: Swords, label: "Battles today", value: "8,340" },
-  { icon: Trophy, label: "Ranked players", value: "142K+" },
-  { icon: Zap, label: "Avg solve time", value: "186ms" },
-];
+import { ArrowRight, Github, Chrome, Apple, ShieldCheck, Check } from "lucide-react";
 
 type AuthPayload = {
   mode: "login" | "register";
@@ -22,11 +14,10 @@ type AuthPayload = {
   role?: "Student" | "Teacher";
 };
 
-export function AuthPage({ mode, onSwitch, onAuth, onBack }: {
+export function AuthPage({ mode, onSwitch, onAuth }: {
   mode: "login" | "register";
   onSwitch: (m: "login" | "register") => void;
   onAuth: (payload: AuthPayload) => Promise<void>;
-  onBack: () => void;
 }) {
   const isLogin = mode === "login";
   const [busy, setBusy] = useState(false);
@@ -76,23 +67,10 @@ export function AuthPage({ mode, onSwitch, onAuth, onBack }: {
   };
 
   return (
-    <div className="grid min-h-screen lg:grid-cols-2">
-      {/* Form side */}
-      <div className="flex flex-col bg-[#FFFEFB] px-8 py-8 md:px-14">
-        <div className="flex items-center justify-between">
-          <button onClick={onBack}><Logo /></button>
-          <button
-            onClick={() => onSwitch(isLogin ? "register" : "login")}
-            className="text-xs text-muted-foreground hover:text-foreground"
-          >
-            {isLogin ? "New here?" : "Have an account?"}{" "}
-            <span className="text-primary">{isLogin ? "Sign up →" : "Sign in →"}</span>
-          </button>
-        </div>
-
-        <div className="m-auto w-full max-w-[400px] py-12">
-          <Chip tone="primary"><Sparkles className="size-3" /> Season Obsidian · Live now</Chip>
-          <h1 className="mt-4 font-display text-[30px] font-bold leading-tight tracking-tight">
+    <div className="min-h-screen bg-[#FFFEFB]">
+      <div className="mx-auto flex min-h-screen w-full max-w-5xl flex-col px-8 py-6 md:px-14">
+        <div className={`mx-auto mb-auto w-full max-w-[400px] ${isLogin ? "mt-12 py-12 md:mt-16" : "mt-2 py-6 md:mt-4 md:py-8"}`}>
+          <h1 className="font-display text-[30px] font-bold leading-tight tracking-tight">
             {isLogin ? "Welcome back." : "Join the arena."}
           </h1>
           <p className="mt-1.5 text-sm text-muted-foreground">
@@ -102,7 +80,7 @@ export function AuthPage({ mode, onSwitch, onAuth, onBack }: {
           </p>
 
           {!isLogin && (
-            <div className="mt-6 flex rounded-lg p-1.5 bg-muted/30 border border-border/50">
+            <div className="mt-4 flex rounded-lg p-1.5 bg-muted/30 border border-border/50">
               <button
                 type="button"
                 onClick={() => setRole("Student")}
@@ -120,13 +98,13 @@ export function AuthPage({ mode, onSwitch, onAuth, onBack }: {
             </div>
           )}
 
-          <div className="mt-6 grid grid-cols-3 gap-2">
+          <div className={`${isLogin ? "mt-6" : "mt-4"} grid grid-cols-3 gap-2`}>
             <Button variant="outline" className="bg-white gap-1.5"><Chrome className="size-3.5 text-primary" /> Google</Button>
             <Button variant="outline" className="bg-white gap-1.5"><Github className="size-3.5" /> GitHub</Button>
             <Button variant="outline" className="bg-white gap-1.5"><Apple className="size-3.5" /> Apple</Button>
           </div>
 
-          <form onSubmit={handleSubmit} className="mt-6 space-y-4">
+          <form onSubmit={handleSubmit} className={`${isLogin ? "mt-6 space-y-4" : "mt-4 space-y-3"}`}>
             {!isLogin && (
               <div className="grid grid-cols-2 gap-3">
                 <Field label="First name">
@@ -178,7 +156,15 @@ export function AuthPage({ mode, onSwitch, onAuth, onBack }: {
             {error && <div className="rounded-md border border-destructive/20 bg-destructive/10 px-3 py-2 text-xs text-destructive">{error}</div>}
           </form>
 
-          <div className="mt-8 flex items-center justify-center gap-4 text-[11px] text-muted-foreground">
+          <button
+            onClick={() => onSwitch(isLogin ? "register" : "login")}
+            className={`${isLogin ? "mt-5" : "mt-4"} block w-full text-center text-xs text-muted-foreground hover:text-foreground`}
+          >
+            {isLogin ? "New here?" : "Have an account?"}{" "}
+            <span className="text-primary">{isLogin ? "Sign up →" : "Sign in →"}</span>
+          </button>
+
+          <div className={`${isLogin ? "mt-8" : "mt-5"} flex items-center justify-center gap-4 text-[11px] text-muted-foreground`}>
             <span className="flex items-center gap-1.5"><ShieldCheck className="size-3.5 text-success" /> End-to-end encrypted</span>
             <span>·</span>
             <span>FERPA-aware</span>
@@ -186,63 +172,6 @@ export function AuthPage({ mode, onSwitch, onAuth, onBack }: {
         </div>
 
         <div className="text-center text-[11px] text-muted-foreground">© 2026 Nullify</div>
-      </div>
-
-      {/* Right side — clean branded panel */}
-      <div
-        className="relative hidden overflow-hidden lg:flex lg:flex-col lg:justify-between lg:p-12"
-        style={{ background: "linear-gradient(145deg, #FFF8EF 0%, #F4E8D6 60%, #EDD9BC 100%)" }}
-      >
-        {/* Subtle dot grid */}
-        <svg className="pointer-events-none absolute inset-0 h-full w-full opacity-[0.12]" xmlns="http://www.w3.org/2000/svg">
-          <defs>
-            <pattern id="dots" x="0" y="0" width="24" height="24" patternUnits="userSpaceOnUse">
-              <circle cx="1.5" cy="1.5" r="1.5" fill="#E53935" />
-            </pattern>
-          </defs>
-          <rect width="100%" height="100%" fill="url(#dots)" />
-        </svg>
-
-        {/* Accent circle */}
-        <div className="pointer-events-none absolute -right-32 -top-32 size-[500px] rounded-full opacity-25"
-          style={{ background: "radial-gradient(circle, #E53935 0%, transparent 65%)" }} />
-        <div className="pointer-events-none absolute -bottom-24 -left-16 size-80 rounded-full opacity-20"
-          style={{ background: "radial-gradient(circle, #00AEEF 0%, transparent 65%)" }} />
-
-        {/* Content */}
-        <div className="relative">
-          <div className="flex items-center gap-2">
-            <span className="size-2 animate-pulse rounded-full bg-success" />
-            <span className="font-mono text-[10px] tracking-[0.2em] text-muted-foreground">42,108 PLAYERS ONLINE</span>
-          </div>
-        </div>
-
-        <div className="relative space-y-8">
-          <div>
-            <div className="font-display text-[52px] font-black leading-[1.05] tracking-tight text-foreground">
-              Code.<br />
-              <span className="text-primary">Compete.</span><br />
-              Conquer.
-            </div>
-            <p className="mt-5 max-w-[300px] text-sm leading-relaxed text-muted-foreground">
-              Ranked 1v1 coding battles, class tournaments, and a global leaderboard. The arena where algorithms meet adrenaline.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-3 gap-3">
-            {STATS.map(({ icon: Icon, label, value }) => (
-              <div key={label} className="rounded-xl border border-border/60 bg-white/50 p-3.5 backdrop-blur">
-                <Icon className="size-4 text-primary" />
-                <div className="mt-2 font-display text-xl font-bold text-foreground">{value}</div>
-                <div className="mt-0.5 font-mono text-[9px] tracking-widest text-muted-foreground">{label.toUpperCase()}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="relative font-mono text-[10px] tracking-widest text-muted-foreground/60">
-          NULLIFY · SEASON OBSIDIAN
-        </div>
       </div>
     </div>
   );

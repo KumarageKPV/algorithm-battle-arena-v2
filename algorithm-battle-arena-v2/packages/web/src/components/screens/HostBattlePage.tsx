@@ -11,9 +11,39 @@ const MODES = [
   { id: "team", t: "Team 3v3", d: "Coordinated squad battle", i: Users2 },
 ];
 
-export function HostBattlePage({ onLaunch }: { onLaunch: () => void }) {
+type HostBattlePayload = {
+  name: string;
+  maxPlayers: number;
+  mode: string;
+  difficulty: string;
+};
+
+export function HostBattlePage({ onLaunch, isLaunching = false }: {
+  onLaunch: (data: HostBattlePayload) => void | Promise<void>;
+  isLaunching?: boolean;
+}) {
   const [mode, setMode] = useState("1v1");
   const [spectator, setSpectator] = useState(true);
+  const [battleName, setBattleName] = useState("Sunset Duel · Graph Bridges");
+  const [challenge, setChallenge] = useState("Articulation Run · Hard");
+  const maxPlayers = mode === "solo" ? 1 : mode === "team" ? 6 : 2;
+  const apiMode = mode === "solo" ? "Solo" : mode === "team" ? "Team" : "1v1";
+  const difficulty = challenge.toLowerCase().includes("easy")
+    ? "Easy"
+    : challenge.toLowerCase().includes("medium")
+      ? "Medium"
+      : "Hard";
+
+  const handleLaunch = () => {
+    if (!battleName.trim() || isLaunching) return;
+    onLaunch({
+      name: battleName.trim(),
+      maxPlayers,
+      mode: apiMode,
+      difficulty,
+    });
+  };
+
   return (
     <div className="grid gap-6 p-6 lg:grid-cols-[1fr_380px]">
       <div className="space-y-6">
@@ -44,8 +74,8 @@ export function HostBattlePage({ onLaunch }: { onLaunch: () => void }) {
         <Section kicker="STEP 2" title="Rules & rewards">
           <Card className="p-5">
             <div className="grid gap-4 md:grid-cols-2">
-              <Field label="Battle name"><Input defaultValue="Sunset Duel · Graph Bridges" className="bg-[var(--input-background)]" /></Field>
-              <Field label="Challenge"><Input defaultValue="Articulation Run · Hard" className="bg-[var(--input-background)]" /></Field>
+              <Field label="Battle name"><Input value={battleName} onChange={(e) => setBattleName(e.target.value)} className="bg-[var(--input-background)]" /></Field>
+              <Field label="Challenge"><Input value={challenge} onChange={(e) => setChallenge(e.target.value)} className="bg-[var(--input-background)]" /></Field>
               <Field label="Time limit"><div className="relative"><Input defaultValue="25" className="bg-[var(--input-background)] pr-14" /><span className="absolute right-3 top-1/2 -translate-y-1/2 font-mono text-xs text-muted-foreground">minutes</span></div></Field>
               <Field label="Primary language">
                 <div className="flex flex-wrap gap-1.5">{["Python", "C++", "JS/TS", "Go", "Any"].map((l, i) => <Chip key={l} tone={i === 1 ? "primary" : "neutral"}>{l}</Chip>)}</div>
@@ -87,8 +117,8 @@ export function HostBattlePage({ onLaunch }: { onLaunch: () => void }) {
             <div className="mt-6 grid grid-cols-3 gap-2 text-center">
               <Stat l="Players" v="1v1" /><Stat l="Stake" v="±34 SR" /><Stat l="XP" v="+240" />
             </div>
-            <Button onClick={onLaunch} size="lg" className="mt-6 h-14 w-full gap-2 bg-gradient-to-r from-primary via-[#C62828] to-[#F26A21] text-base shadow-[0_18px_45px_-15px_rgba(229,57,53,0.55)] hover:opacity-95">
-              <Rocket className="size-5" /> LAUNCH BATTLE
+            <Button onClick={handleLaunch} disabled={isLaunching || !battleName.trim()} size="lg" className="mt-6 h-14 w-full gap-2 bg-gradient-to-r from-primary via-[#C62828] to-[#F26A21] text-base shadow-[0_18px_45px_-15px_rgba(229,57,53,0.55)] hover:opacity-95">
+              <Rocket className="size-5" /> {isLaunching ? "CREATING LOBBY" : "LAUNCH BATTLE"}
             </Button>
             <div className="mt-3 font-mono text-[10px] tracking-widest text-muted-foreground">PRESS ENTER TO CONFIRM</div>
           </div>
