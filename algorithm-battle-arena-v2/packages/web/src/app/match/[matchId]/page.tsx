@@ -156,7 +156,7 @@ export default function MatchPage() {
           <div className="flex items-center gap-2">
             <select value={language} onChange={(e) => setLanguage(e.target.value)}
               className="h-8 rounded-md border border-input bg-input-background px-2 text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/30">
-              <option value="python">Python 3.8</option><option value="java">Java</option><option value="c++">C++</option><option value="c">C</option>
+              <option value="python">Python 3.8</option><option value="javascript">JavaScript</option><option value="java">Java</option><option value="c++">C++</option><option value="c">C</option>
             </select>
             <div className={`flex items-center gap-1 rounded-md border border-border bg-muted/40 px-2 py-1 font-mono text-sm tabular-nums ${timeLeft < 60 ? "text-[var(--tension)] animate-pulse" : "text-foreground"}`}>
               <Clock size={16} /> {fmt(timeLeft)}

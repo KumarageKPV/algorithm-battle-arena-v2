@@ -58,6 +58,16 @@ export function AppShell({
   const router = useRouter();
   const nav = ROLE_NAV[role];
   const { logout, user } = useAuth();
+  const profileInitials = (user?.email || "ME")
+    .split("@")[0]
+    .replace(/[._-]+/g, " ")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((part) => part[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase() || "ME";
 
   const onNav = (viewId: ViewId) => {
     const route = nav.find(n => n.id === viewId)?.href || "/";
@@ -120,7 +130,7 @@ export function AppShell({
       </aside>
 
       {/* Main */}
-      <div className="flex min-w-0 flex-1 flex-col">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         <header className="sticky top-0 z-20 flex h-14 items-center gap-3 border-b border-border bg-white/85 px-4 backdrop-blur md:px-6">
           <div className="md:hidden"><Logo size={24} /></div>
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -138,7 +148,7 @@ export function AppShell({
                 <button className="grid size-9 place-items-center rounded-lg border border-border bg-white transition hover:bg-muted" aria-label="Open profile menu">
                   <Avatar className="size-7 ring-2 ring-primary/20">
                     <AvatarFallback className="bg-primary text-xs text-white">
-                      {user?.fullName?.split(" ").map(x => x[0]).join("") || "ME"}
+                      {profileInitials}
                     </AvatarFallback>
                   </Avatar>
                 </button>
@@ -156,7 +166,7 @@ export function AppShell({
             </DropdownMenu>
           </div>
         </header>
-        <main className="min-w-0 flex-1">{children}</main>
+        <main className="min-h-0 min-w-0 flex-1 overflow-hidden">{children}</main>
       </div>
     </div>
   );

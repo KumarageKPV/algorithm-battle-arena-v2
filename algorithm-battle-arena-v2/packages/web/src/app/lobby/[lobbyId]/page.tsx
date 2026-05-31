@@ -23,7 +23,7 @@ export default function LobbyInstancePage() {
   const [selectedProblems, setSelectedProblems] = useState<any[]>([]);
   const [matchDuration, setMatchDuration] = useState(600);
   const [showChat, setShowChat] = useState(false);
-  const [showSettings, setShowSettings] = useState(false);
+  // Lobby settings are visible by default for the host
   const [isStarting, setIsStarting] = useState(false);
 
   useEffect(() => {
@@ -85,7 +85,6 @@ export default function LobbyInstancePage() {
             <div>
               <div className="font-mono text-[10px] tracking-[0.2em] text-muted-foreground">ARENA LOBBY</div>
               <h1 className="font-display text-[26px] font-semibold">{lobby.lobbyName}</h1>
-              <p className="text-sm text-muted-foreground">Invite code {lobby.lobbyCode}</p>
             </div>
             <div className="flex flex-wrap gap-2">
               <Button variant="outline" className="bg-white" onClick={() => navigator.clipboard.writeText(lobby.lobbyCode)}>
@@ -94,17 +93,14 @@ export default function LobbyInstancePage() {
               <Button variant="outline" className="bg-white" onClick={() => setShowChat(!showChat)}>
                 <MessageCircle className="size-4" /> Chat
               </Button>
-              {isHost && (
-                <>
-                  <Button variant="outline" className="bg-white" onClick={() => setShowSettings(!showSettings)}>
-                    <Settings className="size-4" /> Settings
-                  </Button>
-                  <Button onClick={handleStart} disabled={isStarting} className="bg-primary hover:bg-[#C62828]">
-                    {isStarting ? <Loader2 className="size-4 animate-spin" /> : <Play className="size-4" />}
-                    {isStarting ? "Starting..." : "Start Match"}
-                  </Button>
-                </>
-              )}
+               {isHost && (
+                 <>
+                   <Button onClick={handleStart} disabled={isStarting} className="bg-primary hover:bg-[#C62828]">
+                     {isStarting ? <Loader2 className="size-4 animate-spin" /> : <Play className="size-4" />}
+                     {isStarting ? "Starting..." : "Start Match"}
+                   </Button>
+                 </>
+               )}
               <Button variant="outline" className="border-destructive/30 bg-white text-destructive hover:bg-destructive/10" onClick={handleLeave}>
                 <LogOut className="size-4" /> Leave
               </Button>
@@ -112,7 +108,7 @@ export default function LobbyInstancePage() {
           </div>
 
           {/* Settings Panel */}
-          {isHost && showSettings && (
+          {isHost && (
             <Card className="space-y-4 p-4">
               <div className="flex items-center gap-2 font-display font-semibold">
                 <Settings className="size-4 text-primary" /> Lobby settings

@@ -3,7 +3,20 @@ import { Chip } from "../primitives/Bits";
 import { Button } from "../ui/button";
 import { Avatar, AvatarFallback } from "../ui/avatar";
 import { Check, Play, X, Flame, MessageSquare, Send, Zap, Trophy, Code2, AlertTriangle } from "lucide-react";
-import { TEST_CASES } from "../../lib/data";
+import { TEST_CASES } from "@/lib/data";
+
+const SUPPORTED_LANGUAGES = [
+  { id: 48, name: "C (GCC 7.4.0)" },
+  { id: 52, name: "C++ (GCC 7.4.0)" },
+  { id: 49, name: "C (GCC 8.3.0)" },
+  { id: 53, name: "C++ (GCC 8.3.0)" },
+  { id: 50, name: "C (GCC 9.2.0)" },
+  { id: 54, name: "C++ (GCC 9.2.0)" },
+  { id: 62, name: "Java (OpenJDK 13.0.1)" },
+  { id: 63, name: "JavaScript (Node.js 12.14.0)" },
+  { id: 70, name: "Python (2.7.17)" },
+  { id: 71, name: "Python (3.8.1)" },
+];
 
 const CODE_LINES = [
   "from collections import defaultdict",
@@ -47,10 +60,10 @@ export function MatchPage({ onEnd }: { onEnd: () => void }) {
         <div className="text-center">
           <div className="font-mono text-[10px] tracking-[0.2em] text-muted-foreground">TIME REMAINING</div>
           <div className={`font-display text-[34px] font-bold leading-none tabular-nums ${danger ? "text-[var(--tension)] animate-pulse" : "text-foreground"}`}>{mm}:{ss}</div>
-          <div className="mt-1 flex items-center justify-center gap-2">
-            <Chip tone="tension"><Flame className="size-3" /> BO3 · Game 2</Chip>
-            <Chip tone="primary">Hard · C++/Py</Chip>
-          </div>
+            <div className="mt-1 flex items-center justify-center gap-2">
+              <Chip tone="tension"><Flame className="size-3" /> BO3 · Game 2</Chip>
+              <Chip tone="primary">Hard · {SUPPORTED_LANGUAGES.map(l => l.name.split(' (')[0]).join(' / ')}</Chip>
+            </div>
         </div>
         <PlayerScore name="kenj1" sr={2487} tests="3/6" wpm="42" side="right" />
       </div>
