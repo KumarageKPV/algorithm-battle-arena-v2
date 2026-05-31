@@ -829,7 +829,7 @@ Or push to GitHub and auto-deploy via Vercel integration.
 - **Issues** — GitHub Issues
 - **Discussions** — GitHub Discussions
 - **Docs** — `/docs` folder
-- **Email** — dev@aba.dev (example)
+- **Email** — pavanvilhan@gmail.com (example)
 
 ---
 
