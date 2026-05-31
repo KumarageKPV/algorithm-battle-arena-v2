@@ -21,7 +21,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`antialiased min-h-screen bg-background text-foreground ${inter.variable} ${spaceGrotesk.variable} ${jetbrainsMono.variable}`}>
+      <body
+        className={`antialiased min-h-screen bg-background text-foreground ${inter.variable} ${spaceGrotesk.variable} ${jetbrainsMono.variable}`}
+        style={{ backgroundColor: '#FFF8EF', color: '#1E1B1A' }}
+      >
         <AuthProvider>
           <ToastProvider>
             {children}

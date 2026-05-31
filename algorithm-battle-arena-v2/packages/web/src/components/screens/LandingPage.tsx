@@ -3,7 +3,7 @@ import { Card, Chip, GridArt } from "../primitives/Bits";
 import { Button } from "../ui/button";
 import { Avatar, AvatarFallback } from "../ui/avatar";
 import { ArrowRight, Play, Sparkles, Swords, Trophy, MessageSquare, Flame, ShieldCheck } from "lucide-react";
-import { PLAYERS } from "../../lib/data";
+import { PLAYERS } from "@/lib/data";
 
 export function LandingPage({ onAuth, onApp, onHost }: { onAuth: (v: "login" | "register") => void; onApp: () => void; onHost: () => void }) {
   return (
@@ -35,7 +35,7 @@ export function LandingPage({ onAuth, onApp, onHost }: { onAuth: (v: "login" | "
                 <span className="bg-gradient-to-r from-[#E53935] via-[#F26A21] to-[#F6C445] bg-clip-text text-transparent">Conquer.</span>
               </h1>
               <p className="mt-5 max-w-md text-[15px] leading-relaxed text-muted-foreground">
-                A ranked battle arena for coders. Climb tiers, host live duels, and turn your classroom into a competitive league — without the dark-mode tropes.
+                A ranked battle arena for coders. Climb tiers, host live duels, and turn your classroom into a competitive league.
               </p>
               <div className="mt-7 flex flex-wrap items-center gap-3">
                 <Button size="lg" onClick={onApp} className="h-12 gap-2 bg-primary px-5 hover:bg-[#C62828]">
@@ -202,7 +202,7 @@ export function LandingPage({ onAuth, onApp, onHost }: { onAuth: (v: "login" | "
       <footer className="border-t border-border bg-[#FFFEFB]">
         <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-3 px-6 py-6 md:flex-row">
           <Logo size={22} />
-          <div className="text-xs text-muted-foreground">© 2026 Nullify · An original platform · Crafted for educators and competitors.</div>
+          <div className="text-xs text-muted-foreground">© 2026 Nullify · Crafted for educators and competitors.</div>
         </div>
       </footer>
     </div>
