@@ -19,7 +19,7 @@ export default function MessageInput({ onSendMessage, disabled = false }: Messag
   };
 
   return (
-    <div className="border-t border-gray-700 p-3">
+    <div className="border-t border-border p-3">
       <form onSubmit={handleSubmit} className="flex space-x-2">
         <input
           type="text"
@@ -28,12 +28,12 @@ export default function MessageInput({ onSendMessage, disabled = false }: Messag
           onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSubmit(e); } }}
           placeholder="Type a message..."
           disabled={disabled}
-          className="flex-1 px-3 py-2 bg-arena-input border border-gray-700 rounded-lg text-white text-sm focus:outline-none focus:border-arena-orange disabled:opacity-50"
+          className="flex-1 rounded-md border border-input bg-input-background px-3 py-2 text-sm outline-none placeholder:text-muted-foreground focus:border-ring focus:ring-2 focus:ring-ring/30 disabled:opacity-50"
         />
         <button
           type="submit"
           disabled={!message.trim() || disabled}
-          className="px-4 py-2 bg-arena-orange text-black rounded-lg hover:bg-orange-600 disabled:bg-gray-700 disabled:text-gray-500 disabled:cursor-not-allowed flex items-center gap-1 text-sm font-bold"
+          className="flex items-center gap-1 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
         >
           <Send size={14} />
         </button>
@@ -41,4 +41,3 @@ export default function MessageInput({ onSendMessage, disabled = false }: Messag
     </div>
   );
 }
-

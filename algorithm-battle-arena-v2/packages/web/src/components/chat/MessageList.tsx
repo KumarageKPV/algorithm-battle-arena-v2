@@ -27,7 +27,7 @@ export default function MessageList({ messages, currentUserEmail }: MessageListP
 
   if (!messages || messages.length === 0) {
     return (
-      <div className="flex-1 flex items-center justify-center" style={{ fontFamily: "'Courier New', monospace", color: "#888" }}>
+      <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">
         <p>No messages yet. Start the conversation!</p>
       </div>
     );
@@ -42,18 +42,12 @@ export default function MessageList({ messages, currentUserEmail }: MessageListP
           <div key={msg.messageId ?? i} className={`flex ${isOwn ? "justify-end" : "justify-start"}`}>
             <div className="max-w-xs">
               {showSender && !isOwn && (
-                <div className="text-xs mb-1 px-3" style={{ color: "#ffed4e", fontWeight: "bold" }}>
+                <div className="mb-1 px-3 font-mono text-[10px] text-muted-foreground">
                   {msg.senderName || msg.senderEmail}
                 </div>
               )}
               <div
-                className="px-4 py-2 rounded-xl shadow-lg text-sm"
-                style={{
-                  fontFamily: "'Courier New', monospace",
-                  background: isOwn ? "linear-gradient(90deg, #ff6b00, #ff4d4d)" : "rgba(40, 40, 40, 0.9)",
-                  color: "#fff",
-                  border: isOwn ? "none" : "1px solid #666",
-                }}
+                className={`rounded-xl px-4 py-2 text-sm shadow-sm ${isOwn ? "bg-primary text-primary-foreground" : "border border-border bg-muted text-foreground"}`}
               >
                 <p className="break-words">{msg.content}</p>
                 {msg.sentAt && (
@@ -68,4 +62,3 @@ export default function MessageList({ messages, currentUserEmail }: MessageListP
     </div>
   );
 }
-

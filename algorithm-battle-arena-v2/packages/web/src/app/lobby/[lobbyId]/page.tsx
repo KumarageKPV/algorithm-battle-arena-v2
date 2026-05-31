@@ -4,10 +4,14 @@ import { useParams, useRouter } from "next/navigation";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import ProblemBrowserModal from "@/components/ProblemBrowserModal";
 import LobbyChatSidebar from "@/components/chat/LobbyChatSidebar";
+import { AppShell } from "@/components/shell/AppShell";
+import { Card, Chip } from "@/components/primitives/Bits";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { lobbiesApi, matchesApi } from "@/lib/api";
 import { lobbySocket } from "@/lib/lobbySocket";
 import { useAuth } from "@/lib/auth-context";
-import { Crown, Copy, LogOut, Play, Users, Settings, MessageCircle, XCircle } from "lucide-react";
+import { Crown, Copy, LogOut, Play, Users, Settings, MessageCircle, XCircle, Shield, Swords } from "lucide-react";
 
 export default function LobbyInstancePage() {
   const params = useParams();
@@ -43,99 +47,117 @@ export default function LobbyInstancePage() {
   const handleLeave = async () => { await lobbiesApi.leave(parseInt(lobbyId)); router.push("/lobby"); };
   const handleKick = async (email: string) => { try { await lobbiesApi.kick(parseInt(lobbyId), email); } catch { alert("Failed to kick"); } };
   const handleDifficulty = async (d: string) => { try { await lobbiesApi.updateDifficulty(parseInt(lobbyId), d); } catch {} };
+  const role = (user?.role || "Student").toLowerCase();
+  const shellRole = role === "teacher" ? "teacher" : role === "admin" ? "admin" : "student";
 
-  if (!lobby) return <div className="min-h-screen flex items-center justify-center" style={{ background: "linear-gradient(135deg, #111827 0%, #1a0000 50%, #000 100%)" }}><p style={{ color: "#ff6b00", fontFamily: "'MK4', Impact, sans-serif", fontSize: "1.5rem" }} className="animate-pulse">Loading lobby...</p></div>;
+  if (!lobby) {
+    return (
+      <ProtectedRoute>
+        <AppShell role={shellRole} current="lobbyInstance">
+          <div className="flex min-h-[calc(100vh-56px)] items-center justify-center bg-[var(--surface)]">
+            <p className="animate-pulse font-display text-xl font-semibold text-primary">Loading lobby...</p>
+          </div>
+        </AppShell>
+      </ProtectedRoute>
+    );
+  }
 
   return (
     <ProtectedRoute>
-      <div className="min-h-screen" style={{ background: "linear-gradient(135deg, #111827 0%, #1a0000 50%, #000 100%)" }}>
-        <div className="p-6 max-w-4xl mx-auto">
+      <AppShell role={shellRole} current="lobbyInstance">
+      <div className="min-h-[calc(100vh-56px)] bg-[var(--surface)]">
+        <div className="mx-auto max-w-5xl space-y-6 p-6">
           {/* Header */}
-          <div className="flex items-center justify-between mb-6">
-            <h1 className="select-none" style={{ fontFamily: "'MK4', Impact, sans-serif", fontSize: "2rem", color: "#ffed4e", textShadow: "2px 2px 0px #ff6b00, 4px 4px 0px #000" }}>
-              {lobby.lobbyName}
-            </h1>
-            <div className="flex gap-2">
-              <button onClick={() => navigator.clipboard.writeText(lobby.lobbyCode)}
-                className="px-3 py-2 rounded-lg text-sm flex items-center gap-1" style={{ background: "rgba(40,40,40,0.9)", border: "1px solid #666", color: "#ccc", fontFamily: "'Courier New', monospace" }}>
-                <Copy size={14} /> {lobby.lobbyCode}
-              </button>
-              <button onClick={() => setShowChat(!showChat)} className="px-3 py-2 rounded-lg text-sm flex items-center gap-1 bg-blue-600 hover:bg-blue-700 text-white">
-                <MessageCircle size={14} /> Chat
-              </button>
+          <div className="flex flex-wrap items-end justify-between gap-3">
+            <div>
+              <div className="font-mono text-[10px] tracking-[0.2em] text-muted-foreground">ARENA LOBBY</div>
+              <h1 className="font-display text-[26px] font-semibold">{lobby.lobbyName}</h1>
+              <p className="text-sm text-muted-foreground">Invite code {lobby.lobbyCode}</p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button variant="outline" className="bg-white" onClick={() => navigator.clipboard.writeText(lobby.lobbyCode)}>
+                <Copy className="size-4" /> {lobby.lobbyCode}
+              </Button>
+              <Button variant="outline" className="bg-white" onClick={() => setShowChat(!showChat)}>
+                <MessageCircle className="size-4" /> Chat
+              </Button>
               {isHost && (
                 <>
-                  <button onClick={() => setShowSettings(!showSettings)} className="px-3 py-2 rounded-lg text-sm flex items-center gap-1" style={{ background: "rgba(40,40,40,0.9)", border: "1px solid #666", color: "#ccc" }}>
-                    <Settings size={14} /> Settings
-                  </button>
-                  <button onClick={handleStart} className="px-4 py-2 font-bold rounded-lg text-sm flex items-center gap-1" style={{ background: "linear-gradient(135deg, #22c55e, #16a34a)", color: "#fff" }}>
-                    <Play size={14} /> Start Match
-                  </button>
+                  <Button variant="outline" className="bg-white" onClick={() => setShowSettings(!showSettings)}>
+                    <Settings className="size-4" /> Settings
+                  </Button>
+                  <Button onClick={handleStart} className="bg-primary hover:bg-[#C62828]">
+                    <Play className="size-4" /> Start Match
+                  </Button>
                 </>
               )}
-              <button onClick={handleLeave} className="px-3 py-2 rounded-lg text-sm flex items-center gap-1" style={{ background: "#6B0F1A", color: "#fff", border: "2px solid #4a0a0e" }}>
-                <LogOut size={14} /> Leave
-              </button>
+              <Button variant="outline" className="border-destructive/30 bg-white text-destructive hover:bg-destructive/10" onClick={handleLeave}>
+                <LogOut className="size-4" /> Leave
+              </Button>
             </div>
           </div>
 
           {/* Settings Panel */}
           {isHost && showSettings && (
-            <div className="mb-6 rounded-xl p-4 space-y-4" style={{ background: "rgba(20,20,20,0.85)", border: "2px solid #ff6b00" }}>
-              <h3 style={{ fontFamily: "'Courier New', monospace", color: "#ffed4e", fontWeight: "bold" }}>LOBBY SETTINGS</h3>
-              <div className="grid grid-cols-2 gap-4">
+            <Card className="space-y-4 p-4">
+              <div className="flex items-center gap-2 font-display font-semibold">
+                <Settings className="size-4 text-primary" /> Lobby settings
+              </div>
+              <div className="grid gap-4 md:grid-cols-2">
                 <div>
-                  <label className="block text-sm mb-1" style={{ color: "#ccc", fontFamily: "'Courier New', monospace" }}>DIFFICULTY</label>
+                  <label className="mb-1 block font-mono text-[10px] tracking-widest text-muted-foreground">DIFFICULTY</label>
                   <select value={lobby.difficulty || "Medium"} onChange={(e) => handleDifficulty(e.target.value)}
-                    className="w-full px-3 py-2 rounded-lg text-white" style={{ background: "rgba(40,40,40,0.9)", border: "2px solid #666" }}>
+                    className="h-9 w-full rounded-md border border-input bg-input-background px-3 py-2 text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/30">
                     <option>Easy</option><option>Medium</option><option>Hard</option>
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm mb-1" style={{ color: "#ccc", fontFamily: "'Courier New', monospace" }}>DURATION (seconds)</label>
-                  <input type="number" value={matchDuration} onChange={(e) => setMatchDuration(parseInt(e.target.value) || 600)}
-                    className="w-full px-3 py-2 rounded-lg text-white" style={{ background: "rgba(40,40,40,0.9)", border: "2px solid #666" }} />
+                  <label className="mb-1 block font-mono text-[10px] tracking-widest text-muted-foreground">DURATION (SECONDS)</label>
+                  <Input type="number" value={matchDuration} onChange={(e) => setMatchDuration(parseInt(e.target.value) || 600)} />
                 </div>
               </div>
-              <button onClick={() => setShowProblems(true)} className="px-4 py-2 rounded-lg font-bold text-sm"
-                style={{ background: "linear-gradient(135deg, #ff6b00, #ff4d4d)", color: "#fff" }}>
+              <Button onClick={() => setShowProblems(true)} className="bg-primary hover:bg-[#C62828]">
                 Select Problems ({selectedProblems.length})
-              </button>
-            </div>
+              </Button>
+            </Card>
           )}
 
           {/* Lobby Info */}
-          <div className="rounded-xl p-6" style={{ background: "rgba(20,20,20,0.85)", border: "2px solid #666" }}>
-            <div className="flex gap-4 mb-4 text-sm" style={{ fontFamily: "'Courier New', monospace", color: "#999" }}>
-              <span>Mode: <span className="text-white">{lobby.mode}</span></span>
-              <span>Difficulty: <span className="text-white">{lobby.difficulty}</span></span>
-              <span>Status: <span className="text-white">{lobby.status}</span></span>
+          <Card>
+            <div className="flex flex-wrap gap-2 border-b border-border bg-gradient-to-br from-[#FFF8EF]/70 via-[#FFFEFB] to-[#F4E8D6]/40 px-4 py-3">
+              <Chip tone="primary"><Swords className="size-3" /> {lobby.mode}</Chip>
+              <Chip tone={lobby.difficulty === "Easy" ? "success" : lobby.difficulty === "Hard" ? "danger" : "warning"}>{lobby.difficulty}</Chip>
+              <Chip tone={lobby.status === "Open" ? "success" : "tension"}>{lobby.status}</Chip>
             </div>
 
             {/* Participants */}
-            <h3 className="mb-3 flex items-center gap-2" style={{ fontFamily: "'Courier New', monospace", color: "#ffed4e", fontWeight: "bold" }}>
-              <Users size={18} /> WARRIORS ({lobby.participants?.length ?? 0}/{lobby.maxPlayers})
-            </h3>
-            <div className="space-y-2">
+            <div className="flex items-center justify-between px-4 py-3">
+              <div className="flex items-center gap-2 font-display font-semibold">
+                <Users className="size-4 text-primary" /> Participants
+              </div>
+              <Chip tone="neutral">{lobby.participants?.length ?? 0}/{lobby.maxPlayers}</Chip>
+            </div>
+            <div className="divide-y divide-border">
               {lobby.participants?.map((p: any) => (
-                <div key={p.email} className="flex items-center justify-between p-3 rounded-lg" style={{ background: "rgba(40,40,40,0.5)", border: "1px solid #444" }}>
+                <div key={p.email} className="flex items-center justify-between px-4 py-3 hover:bg-muted/30">
                   <div className="flex items-center gap-2">
-                    {p.email === lobby.hostEmail && <Crown size={16} style={{ color: "#ffed4e" }} />}
-                    <span className="text-white">{p.name || p.email}</span>
-                    {p.email === lobby.hostEmail && <span className="text-xs px-2 py-0.5 rounded" style={{ background: "#6B0F1A", color: "#ffed4e" }}>HOST</span>}
+                    {p.email === lobby.hostEmail && <Crown className="size-4 text-[#F6C445]" />}
+                    <span className="text-sm font-medium">{p.name || p.email}</span>
+                    {p.email === lobby.hostEmail && <Chip tone="primary"><Shield className="size-3" /> Host</Chip>}
                   </div>
                   {isHost && p.email !== lobby.hostEmail && (
-                    <button onClick={() => handleKick(p.email)} className="text-red-400 hover:text-red-300"><XCircle size={16} /></button>
+                    <button onClick={() => handleKick(p.email)} className="rounded-md p-1 text-destructive hover:bg-destructive/10"><XCircle size={16} /></button>
                   )}
                 </div>
               ))}
             </div>
-          </div>
+          </Card>
         </div>
 
         <ProblemBrowserModal isOpen={showProblems} onClose={() => setShowProblems(false)} onAddProblems={setSelectedProblems} />
         {showChat && <LobbyChatSidebar lobbyId={lobbyId} isOpen={showChat} onToggle={() => setShowChat(!showChat)} currentUserEmail={user?.email || ""} />}
       </div>
+      </AppShell>
     </ProtectedRoute>
   );
 }
