@@ -46,7 +46,7 @@ export default function TeacherContactsSection() {
   const [chatConvId, setChatConvId] = useState<number | null>(null);
 
   useEffect(() => {
-    studentsApi.getByStatus("Accepted").then((r) => setStudents(r.data || [])).catch(() => {});
+    studentsApi.getStudents().then((r) => setStudents(r.data || [])).catch(() => {});
     loadConversations();
   }, [loadConversations]);
 

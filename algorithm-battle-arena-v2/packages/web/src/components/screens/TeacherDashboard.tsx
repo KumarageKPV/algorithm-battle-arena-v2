@@ -1,8 +1,10 @@
+import { useState, useEffect } from "react";
 import { Card, Chip, Section, StatTile } from "../primitives/Bits";
 import { Button } from "../ui/button";
 import { Avatar, AvatarFallback } from "../ui/avatar";
 import { ArrowRight, Plus, Swords, BookOpen, MessageSquare, Users } from "lucide-react";
 import { STUDENTS } from "../../lib/data";
+import { studentsApi } from "../../lib/api";
 import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis, YAxis, CartesianGrid, Bar, BarChart } from "recharts";
 
 const ACTIVITY = [
@@ -16,6 +18,14 @@ const TOPICS = [
 ];
 
 export function TeacherDashboard({ onNav }: { onNav: (v: any) => void }) {
+  const [students, setStudents] = useState<any[]>([]);
+
+  useEffect(() => {
+    studentsApi.getStudents()
+      .then((res) => setStudents(res.data))
+      .catch((err) => console.error("Failed to load students:", err));
+  }, []);
+
   return (
     <div className="space-y-6 p-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
@@ -106,22 +116,28 @@ export function TeacherDashboard({ onNav }: { onNav: (v: any) => void }) {
             </div>
           </Card>
 
-          <Section title="Online now" kicker={`${STUDENTS.filter(s => s.status !== "Offline").length} STUDENTS`} action={<a onClick={() => onNav("manage")} className="cursor-pointer text-xs text-primary">Manage →</a>}>
+          <Section title="Online now" kicker={`${students.length} STUDENTS`} action={<a onClick={() => onNav("manage")} className="cursor-pointer text-xs text-primary">Manage →</a>}>
             <Card>
               <div className="divide-y divide-border">
-                {STUDENTS.filter(s => s.status !== "Offline").slice(0, 5).map((s) => (
-                  <div key={s.id} className="flex items-center gap-3 px-4 py-2.5">
-                    <div className="relative">
-                      <Avatar className="size-7"><AvatarFallback className="bg-primary/10 text-primary text-[11px]">{s.name.split(" ").map(x => x[0]).join("")}</AvatarFallback></Avatar>
-                      <span className={`absolute -bottom-0.5 -right-0.5 size-2.5 rounded-full ring-2 ring-white ${s.status === "In match" ? "bg-[var(--tension)] animate-pulse" : "bg-success"}`} />
+                {students.slice(0, 5).map((s) => {
+                  const fullName = `${s.firstName} ${s.lastName}`;
+                  return (
+                    <div key={s.studentId} className="flex items-center gap-3 px-4 py-2.5">
+                      <div className="relative">
+                        <Avatar className="size-7"><AvatarFallback className="bg-primary/10 text-primary text-[11px]">{fullName.split(" ").map(x => x[0]).join("")}</AvatarFallback></Avatar>
+                        <span className={`absolute -bottom-0.5 -right-0.5 size-2.5 rounded-full ring-2 ring-white bg-success`} />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate text-sm font-medium">{fullName}</div>
+                        <div className="font-mono text-[10px] text-muted-foreground">Online · {s.email}</div>
+                      </div>
+                      <div className="font-display text-xs tabular-nums">Unranked</div>
                     </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="truncate text-sm font-medium">{s.name}</div>
-                      <div className="font-mono text-[10px] text-muted-foreground">{s.status} · {s.last}</div>
-                    </div>
-                    <div className="font-display text-xs tabular-nums">{s.rating}</div>
-                  </div>
-                ))}
+                  );
+                })}
+                {students.length === 0 && (
+                  <div className="px-4 py-8 text-center text-xs text-muted-foreground">No students enrolled yet.</div>
+                )}
               </div>
             </Card>
           </Section>

@@ -3,11 +3,12 @@ import { Logo } from "../brand/Logo";
 import { cn } from "../ui/utils";
 import {
   Bell, Search, Swords, Trophy, Users, LayoutDashboard, MessageSquare,
-  Plus, Flame, ChevronRight, Settings, Shield, GraduationCap, BookOpen,
+  Plus, Flame, ChevronRight, Settings, Shield, GraduationCap, BookOpen, LogOut,
 } from "lucide-react";
 import { Avatar, AvatarFallback } from "../ui/avatar";
 import { Badge } from "../ui/badge";
 import { useRouter } from "next/navigation";
+import { useAuth } from "@/lib/auth-context";
 
 export type ViewId =
   | "landing" | "login" | "register"
@@ -51,6 +52,7 @@ export function AppShell({
 }) {
   const router = useRouter();
   const nav = ROLE_NAV[role];
+  const { logout, user } = useAuth();
 
   const onNav = (viewId: ViewId) => {
     const route = nav.find(n => n.id === viewId)?.href || "/";
@@ -112,14 +114,16 @@ export function AppShell({
         </nav>
 
         <div className="border-t border-border p-3">
-          <button className="flex w-full items-center gap-2.5 rounded-lg px-2 py-2 hover:bg-muted">
-            <Avatar className="size-8 ring-2 ring-primary/20"><AvatarFallback className="bg-primary text-white">AV</AvatarFallback></Avatar>
-            <div className="flex-1 text-left">
-              <div className="text-sm font-medium leading-tight">Aurelia Vance</div>
-              <div className="font-mono text-[10px] text-muted-foreground">Diamond II · 2418 SR</div>
+          <div className="flex w-full items-center gap-2.5 rounded-lg px-2 py-2">
+            <Avatar className="size-8 ring-2 ring-primary/20"><AvatarFallback className="bg-primary text-white">{user?.fullName?.split(" ").map(x => x[0]).join("") || "ME"}</AvatarFallback></Avatar>
+            <div className="flex-1 text-left min-w-0">
+              <div className="text-sm font-medium leading-tight truncate">{user?.fullName || "Aurelia Vance"}</div>
+              <div className="font-mono text-[10px] text-muted-foreground truncate">{user?.email || "Diamond II"}</div>
             </div>
-            <Settings className="size-4 text-muted-foreground" />
-          </button>
+            <button onClick={() => { logout(); router.push("/"); }} className="grid size-7 place-items-center rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors" title="Sign Out">
+               <LogOut className="size-4" />
+            </button>
+          </div>
         </div>
       </aside>
 

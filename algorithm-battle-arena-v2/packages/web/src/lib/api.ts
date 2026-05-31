@@ -132,8 +132,7 @@ export const studentsApi = {
     api.put(`/Students/${requestId}/accept`),
   rejectRequest: (requestId: number) =>
     api.put(`/Students/${requestId}/reject`),
-  getByStatus: (status: string) =>
-    api.get("/Students", { params: { status } }),
+  getStudents: () => api.get("/Students"),
   getTeachers: () => api.get("/Students/teachers"),
   getAnalytics: (studentId: number) =>
     api.get(`/Students/${studentId}/analytics`),

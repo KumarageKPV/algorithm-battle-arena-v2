@@ -19,6 +19,7 @@ type AuthPayload = {
   firstName?: string;
   lastName?: string;
   passwordConfirm?: string;
+  role?: "Student" | "Teacher";
 };
 
 export function AuthPage({ mode, onSwitch, onAuth, onBack }: {
@@ -30,6 +31,7 @@ export function AuthPage({ mode, onSwitch, onAuth, onBack }: {
   const isLogin = mode === "login";
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [role, setRole] = useState<"Student" | "Teacher">("Student");
   const [form, setForm] = useState({
     firstName: "",
     lastName: "",
@@ -63,6 +65,7 @@ export function AuthPage({ mode, onSwitch, onAuth, onBack }: {
         firstName: form.firstName,
         lastName: form.lastName,
         passwordConfirm: form.passwordConfirm,
+        role,
       });
     } catch (err: any) {
       const message = err?.response?.data?.message || err?.message || "Authentication failed.";
@@ -98,17 +101,32 @@ export function AuthPage({ mode, onSwitch, onAuth, onBack }: {
               : "Create your account and start competing."}
           </p>
 
-          <div className="mt-7 grid grid-cols-3 gap-2">
+          {!isLogin && (
+            <div className="mt-6 flex rounded-lg p-1.5 bg-muted/30 border border-border/50">
+              <button
+                type="button"
+                onClick={() => setRole("Student")}
+                className={`flex-1 rounded-md py-2 text-sm font-bold transition-all ${role === "Student" ? "bg-primary text-white shadow-md" : "text-muted-foreground hover:text-foreground hover:bg-muted/50"}`}
+              >
+                Student
+              </button>
+              <button
+                type="button"
+                onClick={() => setRole("Teacher")}
+                className={`flex-1 rounded-md py-2 text-sm font-bold transition-all ${role === "Teacher" ? "bg-primary text-white shadow-md" : "text-muted-foreground hover:text-foreground hover:bg-muted/50"}`}
+              >
+                Teacher
+              </button>
+            </div>
+          )}
+
+          <div className="mt-6 grid grid-cols-3 gap-2">
             <Button variant="outline" className="bg-white gap-1.5"><Chrome className="size-3.5 text-primary" /> Google</Button>
             <Button variant="outline" className="bg-white gap-1.5"><Github className="size-3.5" /> GitHub</Button>
             <Button variant="outline" className="bg-white gap-1.5"><Apple className="size-3.5" /> Apple</Button>
           </div>
 
-          <div className="my-6 flex items-center gap-3 font-mono text-[10px] tracking-widest text-muted-foreground">
-            <span className="h-px flex-1 bg-border" /> OR <span className="h-px flex-1 bg-border" />
-          </div>
-
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="mt-6 space-y-4">
             {!isLogin && (
               <div className="grid grid-cols-2 gap-3">
                 <Field label="First name">

@@ -44,9 +44,9 @@ export class StudentsController {
   }
 
   @Get()
-  async getStudentsByStatus(@Query('status') status: string, @Request() req: any) {
+  async getStudents(@Request() req: any) {
     if (req.user.role !== 'Teacher') throw new BadRequestException('Only teachers can view students');
-    return this.studentRepo.getStudentsByStatus(req.user.teacherId, status || 'Pending');
+    return this.studentRepo.getStudents(req.user.teacherId);
   }
 
   @Get('teachers')

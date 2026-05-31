@@ -1,13 +1,38 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, Chip, StatTile } from "../primitives/Bits";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Avatar, AvatarFallback } from "../ui/avatar";
+import { studentsApi } from "../../lib/api";
 import { STUDENTS } from "../../lib/data";
 import { Search, Plus, Download, MoreHorizontal, MessageSquare, Filter, Users } from "lucide-react";
 
 export function ManageStudentsPage({ onChat }: { onChat: () => void }) {
-  const [sel, setSel] = useState<number[]>([1, 4]);
+  const [sel, setSel] = useState<number[]>([]);
+  const [students, setStudents] = useState<any[]>([]);
+  const [studentsPage, setStudentsPage] = useState(0);
+  const STUDENTS_PER_PAGE = 8;
+
+  useEffect(() => {
+    studentsApi.getStudents()
+      .then((res) => {
+        if (res.data && res.data.length > 0) {
+          setStudents(res.data);
+        } else {
+          setStudents(STUDENTS);
+        }
+      })
+      .catch((err) => {
+        console.error("Failed to load students:", err);
+        setStudents(STUDENTS);
+      });
+  }, []);
+
+  const enrolled = students.length;
+  const online = students.filter(s => s.status === "Online").length;
+  const atRisk = students.filter(s => s.risk && s.risk !== "low").length;
+  const activePercent = enrolled > 0 ? Math.round((online / enrolled) * 100) : 0;
+
   const toggle = (id: number) => setSel(s => s.includes(id) ? s.filter(x => x !== id) : [...s, id]);
   return (
     <div className="space-y-6 p-6">
@@ -23,9 +48,9 @@ export function ManageStudentsPage({ onChat }: { onChat: () => void }) {
       </div>
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <StatTile label="ENROLLED" value="86" sub="across 2 cohorts" accent="primary" />
-        <StatTile label="ONLINE NOW" value="64" sub="74% engaged" accent="success" />
-        <StatTile label="AT RISK" value="7" sub="needs follow-up" accent="tension" />
+        <StatTile label="ENROLLED" value={enrolled.toString()} sub="across 2 cohorts" accent="primary" />
+        <StatTile label="ONLINE NOW" value={online.toString()} sub={`${activePercent}% engaged`} accent="success" />
+        <StatTile label="AT RISK" value={atRisk.toString()} sub="needs follow-up" accent="tension" />
         <StatTile label="AVG. STREAK" value="4.2 W" sub="rising" accent="warning" />
       </div>
 
@@ -69,46 +94,79 @@ export function ManageStudentsPage({ onChat }: { onChat: () => void }) {
             </tr>
           </thead>
           <tbody>
-            {STUDENTS.map(s => (
-              <tr key={s.id} className={`border-b border-border last:border-0 hover:bg-muted/30 ${sel.includes(s.id) ? "bg-primary/[0.04]" : ""}`}>
-                <td className="px-4 py-2.5"><input type="checkbox" checked={sel.includes(s.id)} onChange={() => toggle(s.id)} className="accent-primary" /></td>
-                <td className="px-4 py-2.5">
-                  <div className="flex items-center gap-2.5">
-                    <Avatar className="size-8"><AvatarFallback className="bg-primary/10 text-primary text-[11px]">{s.name.split(" ").map(x => x[0]).join("")}</AvatarFallback></Avatar>
-                    <div>
-                      <div className="font-medium">{s.name}</div>
-                      <div className="font-mono text-[10px] text-muted-foreground">{s.email}</div>
+            {students.slice(studentsPage * STUDENTS_PER_PAGE, (studentsPage + 1) * STUDENTS_PER_PAGE).map(s => {
+              const fullName = s.studentId ? `${s.firstName} ${s.lastName}` : s.name;
+              const email = s.email;
+              const id = s.studentId || s.id;
+              const cohort = s.cohort || "-";
+              const status = s.status || "Online";
+              const rating = s.rating || "Unranked";
+              const last = s.last || "Just now";
+              const risk = s.risk || "low";
+              return (
+                <tr key={id} className={`border-b border-border last:border-0 hover:bg-muted/30 ${sel.includes(id) ? "bg-primary/[0.04]" : ""}`}>
+                  <td className="px-4 py-2.5"><input type="checkbox" checked={sel.includes(id)} onChange={() => toggle(id)} className="accent-primary" /></td>
+                  <td className="px-4 py-2.5">
+                    <div className="flex items-center gap-2.5">
+                      <Avatar className="size-8"><AvatarFallback className="bg-primary/10 text-primary text-[11px]">{fullName.split(" ").map((x: string) => x[0]).join("")}</AvatarFallback></Avatar>
+                      <div>
+                        <div className="font-medium">{fullName}</div>
+                        <div className="font-mono text-[10px] text-muted-foreground">{email}</div>
+                      </div>
                     </div>
-                  </div>
-                </td>
-                <td className="px-4 py-2.5 text-muted-foreground">{s.cohort}</td>
-                <td className="px-4 py-2.5">
-                  <span className="inline-flex items-center gap-1.5 text-xs">
-                    <span className={`size-1.5 rounded-full ${s.status === "Online" ? "bg-success" : s.status === "In match" ? "bg-[var(--tension)] animate-pulse" : "bg-muted-foreground/40"}`} />
-                    {s.status}
-                  </span>
-                </td>
-                <td className="px-4 py-2.5 text-right font-display font-semibold tabular-nums">{s.rating}</td>
-                <td className="px-4 py-2.5 font-mono text-xs text-muted-foreground">{s.last}</td>
-                <td className="px-4 py-2.5"><Chip tone={s.risk === "low" ? "success" : s.risk === "medium" ? "warning" : "danger"}>{s.risk}</Chip></td>
-                <td className="px-4 py-2.5">
-                  <button onClick={onChat} className="grid size-7 place-items-center rounded-md hover:bg-muted"><MoreHorizontal className="size-4 text-muted-foreground" /></button>
-                </td>
+                  </td>
+                  <td className="px-4 py-2.5 text-muted-foreground">{cohort}</td>
+                  <td className="px-4 py-2.5">
+                    <span className="inline-flex items-center gap-1.5 text-xs">
+                      <span className={`size-1.5 rounded-full ${status === "Online" ? "bg-success" : status === "Offline" ? "bg-muted-foreground" : "bg-primary"}`} />
+                      {status}
+                    </span>
+                  </td>
+                  <td className="px-4 py-2.5 text-right font-display font-semibold tabular-nums">{rating}</td>
+                  <td className="px-4 py-2.5 font-mono text-xs text-muted-foreground">{last}</td>
+                  <td className="px-4 py-2.5"><Chip tone={risk === "low" ? "success" : risk === "medium" ? "warning" : "tension"}>{risk} risk</Chip></td>
+                  <td className="px-4 py-2.5">
+                    <button onClick={onChat} className="grid size-7 place-items-center rounded-md hover:bg-muted"><MoreHorizontal className="size-4 text-muted-foreground" /></button>
+                  </td>
+                </tr>
+              );
+            })}
+            {students.length === 0 && (
+              <tr>
+                <td colSpan={8} className="px-4 py-8 text-center text-xs text-muted-foreground">No students enrolled yet.</td>
               </tr>
-            ))}
+            )}
           </tbody>
         </table>
 
-        <div className="flex items-center justify-between border-t border-border px-4 py-2.5 text-xs text-muted-foreground">
-          <span>Showing 1–8 of 86</span>
-          <div className="flex gap-1">
-            <Button size="sm" variant="outline" className="h-7 bg-white">Prev</Button>
-            <Button size="sm" className="h-7 bg-primary hover:bg-[#C62828]">1</Button>
-            <Button size="sm" variant="outline" className="h-7 bg-white">2</Button>
-            <Button size="sm" variant="outline" className="h-7 bg-white">3</Button>
-            <Button size="sm" variant="outline" className="h-7 bg-white">Next</Button>
+        {students.length > 0 && (
+          <div className="flex items-center justify-between border-t border-border px-4 py-2.5 text-xs text-muted-foreground">
+            <span>
+              Showing {studentsPage * STUDENTS_PER_PAGE + 1}–{Math.min((studentsPage + 1) * STUDENTS_PER_PAGE, students.length)} of {students.length}
+            </span>
+            <div className="flex gap-1">
+              <Button 
+                size="sm" 
+                variant="outline" 
+                className="h-7 bg-white" 
+                disabled={studentsPage === 0} 
+                onClick={() => setStudentsPage(p => p - 1)}
+              >
+                Prev
+              </Button>
+              <Button size="sm" className="h-7 bg-primary hover:bg-[#C62828] cursor-default">{studentsPage + 1}</Button>
+              <Button 
+                size="sm" 
+                variant="outline" 
+                className="h-7 bg-white" 
+                disabled={(studentsPage + 1) * STUDENTS_PER_PAGE >= students.length} 
+                onClick={() => setStudentsPage(p => p + 1)}
+              >
+                Next
+              </Button>
+            </div>
           </div>
-        </div>
+        )}
       </Card>
     </div>
   );
