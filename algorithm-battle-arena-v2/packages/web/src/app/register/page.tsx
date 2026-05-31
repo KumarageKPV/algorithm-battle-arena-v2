@@ -12,16 +12,23 @@ export default function RegisterPage() {
     <AuthPage
       mode="register"
       onSwitch={(m) => router.push(`/${m === "login" ? "login" : "register"}`)}
-      onAuth={async ({ email, password, firstName, lastName, passwordConfirm }) => {
-        await authApi.registerStudent({
+      onAuth={async ({ email, password, firstName, lastName, passwordConfirm, role }) => {
+        const payload = {
           email,
           password,
           passwordConfirm,
           firstName,
           lastName,
-        });
-        const role = await login(email, password);
-        const normalized = (role || "Student").toLowerCase();
+        };
+
+        if (role === "Teacher") {
+          await authApi.registerTeacher(payload);
+        } else {
+          await authApi.registerStudent(payload);
+        }
+
+        const loggedInRole = await login(email, password);
+        const normalized = (loggedInRole || "Student").toLowerCase();
         const next = normalized === "admin"
           ? "/admin"
           : normalized === "teacher"

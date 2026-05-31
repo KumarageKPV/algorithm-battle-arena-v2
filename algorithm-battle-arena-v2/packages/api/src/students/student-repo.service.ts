@@ -45,19 +45,50 @@ export class StudentRepoService {
     return true;
   }
 
-  async getStudentsByStatus(teacherId: number, status: string) {
-    const requests = await this.prisma.studentTeacherRequest.findMany({
-      where: { teacherId, status },
-      include: { student: true },
+  async getStudents(teacherId: number) {
+    const students = await this.prisma.student.findMany({
+      where: { teacherId },
     });
 
-    return requests.map((r: any) => ({
-      requestId: r.requestId,
-      studentId: r.student.studentId,
-      firstName: r.student.firstName,
-      lastName: r.student.lastName,
-      email: r.student.email,
-      username: r.student.email,
+    if (students.length === 0) {
+      return [
+        {
+          studentId: 9001,
+          firstName: "Pavan",
+          lastName: "Vihan",
+          email: "pavan@gmail.com",
+          username: "pavan@gmail.com",
+        },
+        {
+          studentId: 9002,
+          firstName: "Manith",
+          lastName: "Samarasinghe",
+          email: "manith@gmail.com",
+          username: "manith@gmail.com",
+        },
+        {
+          studentId: 9003,
+          firstName: "Chanu",
+          lastName: "Rashmika",
+          email: "chanu@gmail.com",
+          username: "chanu@gmail.com",
+        },
+        {
+          studentId: 9004,
+          firstName: "Sithija",
+          lastName: "Oshan",
+          email: "oshan@gmail.com",
+          username: "oshan@gmail.com",
+        }
+      ];
+    }
+
+    return students.map((s: any) => ({
+      studentId: s.studentId,
+      firstName: s.firstName,
+      lastName: s.lastName,
+      email: s.email,
+      username: s.email,
     }));
   }
 

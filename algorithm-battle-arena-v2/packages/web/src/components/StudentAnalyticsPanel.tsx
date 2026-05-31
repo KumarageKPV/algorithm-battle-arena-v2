@@ -19,7 +19,7 @@ export default function StudentAnalyticsPanel() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    studentsApi.getByStatus("Accepted").then((r) => setStudents(r.data || [])).catch(() => {}).finally(() => setLoading(false));
+    studentsApi.getStudents().then((r) => setStudents(r.data || [])).catch(() => {}).finally(() => setLoading(false));
   }, []);
 
   const fetchAnalytics = async (studentId: number) => {

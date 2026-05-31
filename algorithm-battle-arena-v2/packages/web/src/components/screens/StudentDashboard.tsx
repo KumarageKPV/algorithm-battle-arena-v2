@@ -219,9 +219,6 @@ export function StudentDashboard({ onNav }: { onNav: (v: any) => void }) {
           <div className="flex flex-wrap gap-2">
             <Button onClick={() => onNav("lobby")} className="h-11 gap-2 bg-primary px-5 hover:bg-[#C62828]"><Play className="size-4 fill-white" /> Quick match</Button>
             <Button onClick={() => onNav("host")} variant="outline" className="h-11 gap-2 bg-white px-5"><Swords className="size-4 text-primary" /> Host a battle</Button>
-            <Button onClick={logout} variant="outline" className="h-11 gap-2 bg-white px-4 text-destructive hover:text-destructive">
-              <LogOut className="size-4" /> Sign out
-            </Button>
           </div>
         </div>
       </div>
