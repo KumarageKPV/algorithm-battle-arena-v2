@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
-import { ArrowRight, Github, Chrome, Apple, ShieldCheck, Check } from "lucide-react";
+import { ArrowRight, Github, Chrome, Apple, ShieldCheck } from "lucide-react";
 
 type AuthPayload = {
   mode: "login" | "register";
@@ -114,15 +114,6 @@ export function AuthPage({ mode, onSwitch, onAuth }: {
                   <Input value={form.lastName} onChange={(e) => update("lastName")(e.target.value)} placeholder="Vance" className="h-10 bg-[var(--input-background)]" />
                 </Field>
               </div>
-            )}
-            {!isLogin && (
-              <Field label="Handle" hint="Your public username">
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 font-mono text-sm text-muted-foreground">@</span>
-                  <Input placeholder="aurelia.v" className="h-10 bg-[var(--input-background)] pl-7 pr-9" disabled />
-                  <Check className="absolute right-3 top-1/2 size-4 -translate-y-1/2 text-success" />
-                </div>
-              </Field>
             )}
             <Field label="Email">
               <Input type="email" value={form.email} onChange={(e) => update("email")(e.target.value)} placeholder="you@school.edu" className="h-10 bg-[var(--input-background)]" />
