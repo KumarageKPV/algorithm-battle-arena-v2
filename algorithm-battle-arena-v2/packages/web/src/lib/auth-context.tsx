@@ -32,6 +32,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     let isMounted = true;
     const loadProfile = async () => {
       try {
+        // Try to get token from localStorage
+        const storedToken = localStorage.getItem('auth_token');
+        if (storedToken) {
+          setTokenState(storedToken);
+        }
+        
         const res = await authApi.getProfile();
         if (!isMounted) return;
         const data = res.data as any;
@@ -41,11 +47,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           studentId: data.role === "Student" ? data.id : undefined,
           teacherId: data.role === "Teacher" ? data.id : undefined,
         });
-        setTokenState(null);
       } catch {
         if (!isMounted) return;
         setUser(null);
         setTokenState(null);
+        localStorage.removeItem('auth_token');
       } finally {
         if (isMounted) setIsLoading(false);
       }
@@ -60,6 +66,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const login = useCallback(async (email: string, password: string): Promise<string> => {
     const res = await authApi.login(email, password);
     const role = res.data.role;
+    const jwtToken = res.data.token; // Get token from response
+    
+    // Store token in localStorage for persistence
+    if (jwtToken) {
+      localStorage.setItem('auth_token', jwtToken);
+    }
+    
     try {
       const profile = await authApi.getProfile();
       const data = profile.data as any;
@@ -69,10 +82,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         studentId: data.role === "Student" ? data.id : undefined,
         teacherId: data.role === "Teacher" ? data.id : undefined,
       });
+      setTokenState(jwtToken);
     } catch {
       setUser(null);
+      setTokenState(null);
     }
-    setTokenState(null);
     return role;
   }, []);
 
@@ -80,6 +94,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     authApi.logout().catch(() => undefined);
     setTokenState(null);
     setUser(null);
+    localStorage.removeItem('auth_token');
     router.push("/login");
   }, [router]);
 

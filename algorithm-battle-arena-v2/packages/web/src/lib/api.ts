@@ -13,8 +13,14 @@ const api = axios.create({
   withCredentials: true,
 });
 
-// Request interceptor reserved for future headers (cookie auth in use)
-api.interceptors.request.use((config) => config);
+// Request interceptor to add token to headers
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem('auth_token');
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
 
 api.interceptors.response.use(
   (response) => response,
