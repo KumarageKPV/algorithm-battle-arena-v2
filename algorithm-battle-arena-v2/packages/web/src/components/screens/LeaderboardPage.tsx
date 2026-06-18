@@ -100,7 +100,7 @@ export function LeaderboardPage() {
                     #{i + 1}
                   </div>
                   <div className="flex items-center gap-3 min-w-0">
-                    <Avatar className="size-8 ring-1 ring-primary/15"><AvatarFallback className="bg-primary/10 text-primary text-[11px]">{p.name.split(" ").map(s => s[0]).join("")}</AvatarFallback></Avatar>
+                    <Avatar className="size-8 ring-1 ring-primary/15"><AvatarFallback className="bg-primary/10 text-primary text-[11px]">{p.name.split(" ").map((s: string) => s[0]).join("")}</AvatarFallback></Avatar>
                     <div className="min-w-0">
                       <div className="flex items-center gap-1.5 text-sm font-medium">{p.name} {isMe && <Chip tone="primary">You</Chip>}</div>
                       <div className="font-mono text-[10px] text-muted-foreground">@{p.handle} {COUNTRIES[p.country]}</div>
@@ -138,7 +138,7 @@ export function LeaderboardPage() {
             <div className="mt-3 space-y-2">
               {rest.slice(0, 3).map(r => (
                 <div key={r.id} className="flex items-center gap-2.5 rounded-lg border border-border bg-white px-3 py-2">
-                  <Avatar className="size-7"><AvatarFallback className="bg-primary/10 text-primary text-[10px]">{r.name.split(" ").map(s => s[0]).join("")}</AvatarFallback></Avatar>
+                  <Avatar className="size-7"><AvatarFallback className="bg-primary/10 text-primary text-[10px]">{r.name.split(" ").map((s: string) => s[0]).join("")}</AvatarFallback></Avatar>
                   <div className="flex-1">
                     <div className="text-sm font-medium">{r.name}</div>
                     <div className="font-mono text-[10px] text-muted-foreground">±{Math.abs(me.rating - r.rating)} SR away</div>
