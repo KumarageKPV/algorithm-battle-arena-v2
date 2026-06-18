@@ -41,19 +41,41 @@ async function bootstrap() {
 
   // ─── CORS (mirrors Program.cs DevCors/ProdCors) ─────────────────
   const isDev = process.env.NODE_ENV !== 'production';
+  
+  // Allow all origins in production (can be restricted later)
+  const allowedOrigins = isDev
+    ? [
+        'http://localhost:5173',
+        'http://localhost:4200',
+        'http://localhost:3000',
+        'http://localhost:8000',
+      ]
+    : [
+        'https://nullify-livid.vercel.app',
+        'https://nullify-2iau.onrender.com',
+      ];
 
   app.enableCors({
-    origin: isDev
-      ? [
-          'http://localhost:5173', // Vite (existing React frontend)
-          'http://localhost:4200',
-          'http://localhost:3000', // Next.js (new frontend)
-          'http://localhost:8000',
-        ]
-      : [
-          process.env.FRONTEND_URL || 'https://your-vercel-app.vercel.app',
-          'https://nullify-2iau.onrender.com', // Render backend URL (for testing)
-        ],
+    origin: (origin, callback) => {
+      // Allow requests with no origin (like mobile apps or Postman)
+      if (!origin) return callback(null, true);
+      
+      // In development, allow all localhost
+      if (isDev && origin.includes('localhost')) {
+        return callback(null, true);
+      }
+      
+      // In production, check against allowed origins or Vercel domains
+      if (
+        allowedOrigins.includes(origin) ||
+        origin.endsWith('.vercel.app') ||
+        origin.endsWith('.onrender.com')
+      ) {
+        return callback(null, true);
+      }
+      
+      callback(new Error('Not allowed by CORS'));
+    },
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Correlation-Id'],
     credentials: true,
