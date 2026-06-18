@@ -13,28 +13,41 @@ export default function RegisterPage() {
       mode="register"
       onSwitch={(m) => router.push(`/${m === "login" ? "login" : "register"}`)}
       onAuth={async ({ email, password, firstName, lastName, passwordConfirm, role }) => {
-        const payload = {
-          email,
-          password,
-          passwordConfirm,
-          firstName,
-          lastName,
-        };
+        try {
+          const payload = {
+            email,
+            password,
+            passwordConfirm,
+            firstName,
+            lastName,
+          };
 
-        if (role === "Teacher") {
-          await authApi.registerTeacher(payload);
-        } else {
-          await authApi.registerStudent(payload);
+          // Register the user
+          if (role === "Teacher") {
+            await authApi.registerTeacher(payload);
+          } else {
+            await authApi.registerStudent(payload);
+          }
+
+          // Auto-login after registration
+          const loggedInRole = await login(email, password);
+          
+          // Redirect based on role
+          const normalized = (loggedInRole || "Student").toLowerCase();
+          const next = normalized === "admin"
+            ? "/admin"
+            : normalized === "teacher"
+              ? "/teacher"
+              : "/student-dashboard";
+          
+          console.log('Registration successful, redirecting to:', next);
+          router.push(next);
+        } catch (error) {
+          console.error('Registration/Login error:', error);
+          // If auto-login fails, redirect to login page
+          alert('Registration successful! Please login.');
+          router.push('/login');
         }
-
-        const loggedInRole = await login(email, password);
-        const normalized = (loggedInRole || "Student").toLowerCase();
-        const next = normalized === "admin"
-          ? "/admin"
-          : normalized === "teacher"
-            ? "/teacher"
-            : "/student-dashboard";
-        router.push(next);
       }}
     />
   );
