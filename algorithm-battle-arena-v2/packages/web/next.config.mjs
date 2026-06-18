@@ -2,7 +2,7 @@
 const nextConfig = {
   async rewrites() {
     // In production, NEXT_PUBLIC_API_URL points directly to the backend
-    // so no rewrite is needed — only proxy in local dev
+    // so no rewrite is needed, only proxy in local dev
     if (process.env.NEXT_PUBLIC_API_URL) return [];
     return [
       {
