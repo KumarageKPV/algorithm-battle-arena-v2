@@ -52,6 +52,7 @@ async function bootstrap() {
         ]
       : [
           process.env.FRONTEND_URL || 'https://your-vercel-app.vercel.app',
+          'https://nullify-2iau.onrender.com', // Render backend URL (for testing)
         ],
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Correlation-Id'],
@@ -60,13 +61,16 @@ async function bootstrap() {
 
   // ─── Start Listening ─────────────────────────────────────────────
   const port = process.env.PORT || 5000;
-  await app.listen(port);
+  await app.listen(port, '0.0.0.0'); // Bind to 0.0.0.0 for Render
 
-  logger.log(`🏟️  Algorithm Battle Arena API running on http://localhost:${port}`);
+  logger.log(`🏟️  Algorithm Battle Arena API running on port ${port}`);
   logger.log(`📡  Socket.IO namespaces: /lobby, /chat`);
+  logger.log(`🌐  Public URL: https://nullify-2iau.onrender.com`);
 
   if (isDev) {
     logger.log(`🔧  Development mode — CORS allows localhost origins`);
+  } else {
+    logger.log(`🚀  Production mode — CORS configured for Vercel frontend`);
   }
 }
 

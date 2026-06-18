@@ -34,6 +34,7 @@ import { TeachersController } from './teachers/teachers.controller';
 import { StatisticsController } from './statistics/statistics.controller';
 import { AdminController } from './admin/admin.controller';
 import { CodeExecutionController } from './code-execution/code-execution.controller';
+import { HealthController } from './health/health.controller';
 
 // ─── Gateways (Socket.IO) ─────────────────────────────────────────
 import { LobbyGateway } from './gateways/lobby.gateway';
@@ -71,6 +72,7 @@ import { CodeExecutionService } from './code-execution/code-execution.service';
     StatisticsController,
     AdminController,
     CodeExecutionController,
+    HealthController,
   ],
   providers: [
     // Repository services (12)
