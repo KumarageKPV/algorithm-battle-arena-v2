@@ -11,9 +11,9 @@ const spaceGrotesk = Space_Grotesk({ subsets: ["latin"], variable: "--font-displ
 const jetbrainsMono = JetBrains_Mono({ subsets: ["latin"], variable: "--font-mono" });
 
 export const metadata: Metadata = {
-  title: "Algorithm Battle Arena",
+  title: "Nullify",
   description: "Competitive coding battle arena — fight for glory!",
-  icons: { icon: "/aba-favicon.svg" },
+  icons: { icon: "/nullify_logo_v2.png" },
 };
 
 export default function RootLayout({
