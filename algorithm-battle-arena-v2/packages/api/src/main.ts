@@ -59,6 +59,9 @@ async function bootstrap() {
 
   app.enableCors({
     origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
+      // Log the origin for debugging
+      logger.log(`CORS request from origin: ${origin}`);
+      
       // Allow requests with no origin (like mobile apps or Postman)
       if (!origin) return callback(null, true);
       
@@ -72,11 +75,12 @@ async function bootstrap() {
         allowedOrigins.includes(origin) ||
         origin.endsWith('.vercel.app') ||
         origin.endsWith('.onrender.com') ||
-        origin.endsWith('.nullify.quest')
+        origin.includes('nullify.quest')
       ) {
         return callback(null, true);
       }
       
+      logger.warn(`CORS blocked origin: ${origin}`);
       callback(new Error('Not allowed by CORS'));
     },
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
