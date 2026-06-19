@@ -13,7 +13,7 @@ const jetbrainsMono = JetBrains_Mono({ subsets: ["latin"], variable: "--font-mon
 export const metadata: Metadata = {
   title: "Nullify",
   description: "Competitive coding battle arena — fight for glory!",
-  icons: { icon: "/nullify_logo_v2.png" },
+  icons: { icon: "/nullify_logo_v2.svg" },
 };
 
 export default function RootLayout({
