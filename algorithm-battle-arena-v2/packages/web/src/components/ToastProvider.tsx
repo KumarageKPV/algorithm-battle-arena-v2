@@ -43,16 +43,16 @@ export default function ToastProvider({ children }: { children: React.ReactNode 
   return (
     <ToastContext.Provider value={value}>
       {children}
-      {/* Toast container */}
-      <div className="fixed top-4 right-4 z-50 flex flex-col gap-2 max-w-sm">
+      {/* Toast container - bottom center */}
+      <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex flex-col gap-2 max-w-md w-full px-4">
         {toasts.map((t) => (
           <div
             key={t.id}
-            className={`animate-fade-in border rounded-lg px-4 py-3 flex items-center gap-3 shadow-lg backdrop-blur ${typeStyles[t.type]}`}
+            className={`animate-in slide-in-from-bottom-2 border rounded-lg px-4 py-3 flex items-center gap-3 shadow-xl backdrop-blur ${typeStyles[t.type]}`}
           >
-            <span className="flex-1 text-sm">{t.message}</span>
-            <button onClick={() => remove(t.id)} className="opacity-60 hover:opacity-100">
-              <X size={14} />
+            <span className="flex-1 text-sm font-medium">{t.message}</span>
+            <button onClick={() => remove(t.id)} className="opacity-60 hover:opacity-100 transition-opacity">
+              <X size={16} />
             </button>
           </div>
         ))}
