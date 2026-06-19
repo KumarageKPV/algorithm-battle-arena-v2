@@ -51,6 +51,8 @@ async function bootstrap() {
         'http://localhost:8000',
       ]
     : [
+        'https://nullify.quest',
+        'https://www.nullify.quest',
         'https://nullify-livid.vercel.app',
         'https://nullify-2iau.onrender.com',
       ];
@@ -65,11 +67,12 @@ async function bootstrap() {
         return callback(null, true);
       }
       
-      // In production, check against allowed origins or Vercel domains
+      // In production, check against allowed origins or known deployment domains
       if (
         allowedOrigins.includes(origin) ||
         origin.endsWith('.vercel.app') ||
-        origin.endsWith('.onrender.com')
+        origin.endsWith('.onrender.com') ||
+        origin.endsWith('.nullify.quest')
       ) {
         return callback(null, true);
       }
@@ -88,11 +91,12 @@ async function bootstrap() {
   logger.log(`🏟️  Algorithm Battle Arena API running on port ${port}`);
   logger.log(`📡  Socket.IO namespaces: /lobby, /chat`);
   logger.log(`🌐  Public URL: https://nullify-2iau.onrender.com`);
+  logger.log(`🌐  Frontend URL: https://nullify.quest`);
 
   if (isDev) {
     logger.log(`🔧  Development mode — CORS allows localhost origins`);
   } else {
-    logger.log(`🚀  Production mode — CORS configured for Vercel frontend`);
+    logger.log(`🚀  Production mode — CORS configured for nullify.quest and Vercel`);
   }
 }
 
