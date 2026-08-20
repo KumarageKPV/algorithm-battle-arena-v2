@@ -1,0 +1,87 @@
+﻿name: CI/CD
+
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: algorithm_battle_arena_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql://postgres:test@localhost:5432/algorithm_battle_arena_test
+      JWT_SECRET: test_jwt_secret_key_that_is_long_enough_for_hs512_algorithm_testing
+      PASSWORD_KEY: test_password_key
+      ADMIN_EMAIL: admin@test.com
+      ADMIN_PASSWORD: admin_test_password
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: packages/api/package-lock.json
+
+      - name: Install API dependencies
+        working-directory: packages/api
+        run: npm ci
+
+      - name: Generate Prisma client
+        working-directory: packages/api
+        run: npx prisma generate
+
+      - name: Run database migrations
+        working-directory: packages/api
+        run: npx prisma migrate deploy
+
+      - name: Run tests
+        working-directory: packages/api
+        run: npm test -- --coverage
+
+      - name: Lint
+        working-directory: packages/api
+        run: npm run lint || true
+
+  deploy-backend:
+    needs: test
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build Docker image
+        working-directory: packages/api
+        run: docker build -t aba-api .
+
+      # Uncomment and configure for your cloud provider:
+      # - name: Push to registry
+      #   run: |
+      #     docker tag aba-api gcr.io/${{ secrets.GCP_PROJECT_ID }}/aba-api
+      #     docker push gcr.io/${{ secrets.GCP_PROJECT_ID }}/aba-api
+      #
+      # - name: Deploy to Cloud Run
+      #   uses: google-github-actions/deploy-cloudrun@v2
+      #   with:
+      #     service: aba-api
+      #     image: gcr.io/${{ secrets.GCP_PROJECT_ID }}/aba-api
+
+  # Frontend auto-deploys via Vercel GitHub integration
+

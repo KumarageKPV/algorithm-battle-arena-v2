@@ -1,0 +1,332 @@
+// =============================================================================
+// Algorithm Battle Arena — Prisma Schema
+// PostgreSQL — matches scripts/init.sql (16 tables)
+// =============================================================================
+
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Auth ──────────────────────────────────────────────────────────
+
+model Auth {
+  email        String @id @map("email") @db.VarChar(50)
+  passwordHash Bytes  @map("password_hash")
+  passwordSalt Bytes  @map("password_salt")
+
+  // Relations
+  student                  Student?
+  teacher                  Teacher?
+  hostedLobbies            Lobby[]                   @relation("LobbyHost")
+  lobbyParticipations      LobbyParticipant[]
+  submissions              Submission[]
+  conversationParticipants ConversationParticipant[]
+  sentMessages             Message[]
+
+  @@map("auth")
+}
+
+// ─── Teachers ──────────────────────────────────────────────────────
+
+model Teacher {
+  teacherId Int      @id @default(autoincrement()) @map("teacher_id")
+  firstName String?  @map("first_name") @db.VarChar(50)
+  lastName  String?  @map("last_name") @db.VarChar(50)
+  email     String   @unique @map("email") @db.VarChar(50)
+  active    Boolean? @default(true) @map("active")
+
+  // Relations
+  auth                   Auth                    @relation(fields: [email], references: [email])
+  students               Student[]
+  studentTeacherRequests StudentTeacherRequest[]
+
+  @@map("teachers")
+}
+
+// ─── Student ───────────────────────────────────────────────────────
+
+model Student {
+  studentId Int      @id @default(autoincrement()) @map("student_id")
+  firstName String?  @map("first_name") @db.VarChar(50)
+  lastName  String?  @map("last_name") @db.VarChar(50)
+  email     String   @unique @map("email") @db.VarChar(50)
+  teacherId Int?     @map("teacher_id")
+  active    Boolean? @default(true) @map("active")
+
+  // Relations
+  auth                   Auth                    @relation(fields: [email], references: [email])
+  teacher                Teacher?                @relation(fields: [teacherId], references: [teacherId])
+  studentTeacherRequests StudentTeacherRequest[]
+  friendsAsStudent1      Friend[]                @relation("FriendStudent1")
+  friendsAsStudent2      Friend[]                @relation("FriendStudent2")
+  sentFriendRequests     FriendRequest[]         @relation("FriendRequestSender")
+  receivedFriendRequests FriendRequest[]         @relation("FriendRequestReceiver")
+
+  @@map("student")
+}
+
+// ─── Problems ──────────────────────────────────────────────────────
+
+model Problem {
+  problemId       Int       @id @default(autoincrement()) @map("problem_id")
+  title           String    @map("title") @db.VarChar(255)
+  description     String    @map("description") @db.Text
+  difficultyLevel String?   @map("difficulty_level") @db.VarChar(50)
+  category        String?   @map("category") @db.VarChar(100)
+  timeLimit       Int?      @map("time_limit")
+  memoryLimit     Int?      @map("memory_limit")
+  createdBy       String?   @map("created_by") @db.VarChar(100)
+  tags            String?   @map("tags") @db.Text
+  createdAt       DateTime? @default(now()) @map("created_at") @db.Timestamptz()
+
+  // Relations
+  testCases     ProblemTestCase[]
+  solutions     ProblemSolution[]
+  matchProblems MatchProblem[]
+  submissions   Submission[]
+
+  @@map("problems")
+}
+
+// ─── ProblemTestCases ──────────────────────────────────────────────
+
+model ProblemTestCase {
+  testCaseId     Int      @id @default(autoincrement()) @map("test_case_id")
+  problemId      Int      @map("problem_id")
+  inputData      String?  @map("input_data") @db.Text
+  expectedOutput String?  @map("expected_output") @db.Text
+  isSample       Boolean? @default(false) @map("is_sample")
+
+  // Relations
+  problem Problem @relation(fields: [problemId], references: [problemId], onDelete: Cascade)
+
+  @@map("problem_test_cases")
+}
+
+// ─── ProblemSolutions ──────────────────────────────────────────────
+
+model ProblemSolution {
+  solutionId   Int     @id @default(autoincrement()) @map("solution_id")
+  problemId    Int     @map("problem_id")
+  language     String? @map("language") @db.VarChar(50)
+  solutionText String? @map("solution_text") @db.Text
+
+  // Relations
+  problem Problem @relation(fields: [problemId], references: [problemId], onDelete: Cascade)
+
+  @@map("problem_solutions")
+}
+
+// ─── Lobbies ───────────────────────────────────────────────────────
+
+model Lobby {
+  lobbyId    Int       @id @default(autoincrement()) @map("lobby_id")
+  lobbyCode  String    @unique @map("lobby_code") @db.VarChar(10)
+  hostEmail  String    @map("host_email") @db.VarChar(50)
+  lobbyName  String    @map("lobby_name") @db.VarChar(100)
+  isPublic   Boolean   @default(true) @map("is_public")
+  maxPlayers Int       @default(10) @map("max_players")
+  mode       String    @map("mode") @db.VarChar(20)
+  difficulty String    @map("difficulty") @db.VarChar(20)
+  category   String?   @map("category") @db.VarChar(100)
+  status     String    @default("Open") @map("status") @db.VarChar(20)
+  createdAt  DateTime? @default(now()) @map("created_at") @db.Timestamptz()
+  startedAt  DateTime? @map("started_at") @db.Timestamptz()
+  endedAt    DateTime? @map("ended_at") @db.Timestamptz()
+
+  // Relations
+  host         Auth               @relation("LobbyHost", fields: [hostEmail], references: [email])
+  participants LobbyParticipant[]
+  matches      Match[]
+
+  @@map("lobbies")
+}
+
+// ─── LobbyParticipants ────────────────────────────────────────────
+
+model LobbyParticipant {
+  lobbyParticipantId Int       @id @default(autoincrement()) @map("lobby_participant_id")
+  lobbyId            Int       @map("lobby_id")
+  participantEmail   String    @map("participant_email") @db.VarChar(50)
+  role               String    @default("Player") @map("role") @db.VarChar(20)
+  joinedAt           DateTime? @default(now()) @map("joined_at") @db.Timestamptz()
+
+  // Relations
+  lobby       Lobby @relation(fields: [lobbyId], references: [lobbyId], onDelete: Cascade)
+  participant Auth  @relation(fields: [participantEmail], references: [email], onDelete: Cascade)
+
+  @@unique([lobbyId, participantEmail], map: "uq_lobby_participant")
+  @@map("lobby_participants")
+}
+
+// ─── Matches ───────────────────────────────────────────────────────
+
+model Match {
+  matchId   Int       @id @default(autoincrement()) @map("match_id")
+  lobbyId   Int       @map("lobby_id")
+  startedAt DateTime  @default(now()) @map("started_at") @db.Timestamptz()
+  endedAt   DateTime? @map("ended_at") @db.Timestamptz()
+
+  // Relations
+  lobby         Lobby          @relation(fields: [lobbyId], references: [lobbyId], onDelete: Cascade)
+  matchProblems MatchProblem[]
+  submissions   Submission[]
+
+  @@map("matches")
+}
+
+// ─── MatchProblems ─────────────────────────────────────────────────
+
+model MatchProblem {
+  matchProblemId Int @id @default(autoincrement()) @map("match_problem_id")
+  matchId        Int @map("match_id")
+  problemId      Int @map("problem_id")
+
+  // Relations
+  match   Match   @relation(fields: [matchId], references: [matchId], onDelete: Cascade)
+  problem Problem @relation(fields: [problemId], references: [problemId], onDelete: Cascade)
+
+  @@map("match_problems")
+}
+
+// ─── Submissions ───────────────────────────────────────────────────
+
+model Submission {
+  submissionId     Int      @id @default(autoincrement()) @map("submission_id")
+  matchId          Int      @map("match_id")
+  problemId        Int      @map("problem_id")
+  participantEmail String   @map("participant_email") @db.VarChar(50)
+  language         String   @map("language") @db.VarChar(50)
+  code             String   @map("code") @db.Text
+  status           String   @default("Submitted") @map("status") @db.VarChar(20)
+  score            Int?     @map("score")
+  submittedAt      DateTime @default(now()) @map("submitted_at") @db.Timestamptz()
+
+  // Relations
+  match       Match   @relation(fields: [matchId], references: [matchId], onDelete: NoAction)
+  problem     Problem @relation(fields: [problemId], references: [problemId])
+  participant Auth    @relation(fields: [participantEmail], references: [email])
+
+  @@map("submissions")
+}
+
+// ─── StudentTeacherRequests ────────────────────────────────────────
+
+model StudentTeacherRequest {
+  requestId   Int       @id @default(autoincrement()) @map("request_id")
+  studentId   Int       @map("student_id")
+  teacherId   Int       @map("teacher_id")
+  status      String    @default("Pending") @map("status") @db.VarChar(20)
+  requestedAt DateTime? @default(now()) @map("requested_at") @db.Timestamptz()
+
+  // Relations
+  student Student @relation(fields: [studentId], references: [studentId], onDelete: Cascade)
+  teacher Teacher @relation(fields: [teacherId], references: [teacherId], onDelete: Cascade)
+
+  @@unique([studentId, teacherId], map: "uq_student_teacher_request")
+  @@map("student_teacher_requests")
+}
+
+// ─── AuditLog ──────────────────────────────────────────────────────
+
+model AuditLog {
+  auditLogId    Int       @id @default(autoincrement()) @map("audit_log_id")
+  userId        String?   @map("user_id") @db.VarChar(100)
+  action        String?   @map("action") @db.VarChar(100)
+  entityType    String?   @map("entity_type") @db.VarChar(100)
+  entityId      String?   @map("entity_id") @db.VarChar(100)
+  beforeState   String?   @map("before_state") @db.Text
+  afterState    String?   @map("after_state") @db.Text
+  correlationId String?   @map("correlation_id") @db.VarChar(100)
+  timestamp     DateTime? @default(now()) @map("timestamp") @db.Timestamptz()
+
+  @@map("audit_log")
+}
+
+// ─── Friends ───────────────────────────────────────────────────────
+
+model Friend {
+  friendshipId Int       @id @default(autoincrement()) @map("friendship_id")
+  studentId1   Int       @map("student_id_1")
+  studentId2   Int       @map("student_id_2")
+  createdAt    DateTime? @default(now()) @map("created_at") @db.Timestamptz()
+
+  // Relations
+  student1 Student @relation("FriendStudent1", fields: [studentId1], references: [studentId])
+  student2 Student @relation("FriendStudent2", fields: [studentId2], references: [studentId])
+
+  @@unique([studentId1, studentId2], map: "uq_friendship")
+  @@map("friends")
+}
+
+// ─── FriendRequests ────────────────────────────────────────────────
+
+model FriendRequest {
+  requestId   Int       @id @default(autoincrement()) @map("request_id")
+  senderId    Int       @map("sender_id")
+  receiverId  Int       @map("receiver_id")
+  status      String?   @default("Pending") @map("status") @db.VarChar(20)
+  requestedAt DateTime? @default(now()) @map("requested_at") @db.Timestamptz()
+  respondedAt DateTime? @map("responded_at") @db.Timestamptz()
+
+  // Relations
+  sender   Student @relation("FriendRequestSender", fields: [senderId], references: [studentId])
+  receiver Student @relation("FriendRequestReceiver", fields: [receiverId], references: [studentId])
+
+  @@unique([senderId, receiverId], map: "uq_friend_request")
+  @@map("friend_requests")
+}
+
+// ─── Conversations ─────────────────────────────────────────────────
+
+model Conversation {
+  conversationId Int       @id @default(autoincrement()) @map("conversation_id")
+  type           String    @map("type") @db.VarChar(20)
+  referenceId    Int?      @map("reference_id")
+  createdAt      DateTime? @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt      DateTime? @default(now()) @map("updated_at") @db.Timestamptz()
+
+  // Relations
+  participants ConversationParticipant[]
+  messages     Message[]
+
+  @@map("conversations")
+}
+
+// ─── ConversationParticipants ──────────────────────────────────────
+
+model ConversationParticipant {
+  conversationParticipantId Int       @id @default(autoincrement()) @map("conversation_participant_id")
+  conversationId            Int       @map("conversation_id")
+  participantEmail          String    @map("participant_email") @db.VarChar(50)
+  joinedAt                  DateTime? @default(now()) @map("joined_at") @db.Timestamptz()
+
+  // Relations
+  conversation Conversation @relation(fields: [conversationId], references: [conversationId], onDelete: Cascade)
+  participant  Auth         @relation(fields: [participantEmail], references: [email])
+
+  @@unique([conversationId, participantEmail], map: "uq_conversation_participant")
+  @@map("conversation_participants")
+}
+
+// ─── Messages ──────────────────────────────────────────────────────
+
+model Message {
+  messageId      Int       @id @default(autoincrement()) @map("message_id")
+  conversationId Int       @map("conversation_id")
+  senderEmail    String    @map("sender_email") @db.VarChar(50)
+  content        String    @map("content") @db.Text
+  sentAt         DateTime? @default(now()) @map("sent_at") @db.Timestamptz()
+
+  // Relations
+  conversation Conversation @relation(fields: [conversationId], references: [conversationId], onDelete: Cascade)
+  sender       Auth         @relation(fields: [senderEmail], references: [email])
+
+  @@map("messages")
+}
