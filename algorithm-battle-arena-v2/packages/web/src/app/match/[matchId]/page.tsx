@@ -69,10 +69,12 @@ export default function MatchPage() {
 
   const fmt = (s: number) => `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
   const activeProblem = problems[activeProblemIdx];
-  const activeTestCases = (activeProblem?.testCases ?? []).map((tc: any) => ({
-    inputData: tc.inputData ?? "",
-    expectedOutput: tc.expectedOutput ?? "",
-  }));
+  const activeTestCases = (activeProblem?.testCases ?? [])
+    .filter((tc: any) => tc.isSample)
+    .map((tc: any) => ({
+      inputData: tc.inputData ?? "",
+      expectedOutput: tc.expectedOutput ?? "",
+    }));
   const hasSubmittedActive = activeProblem ? submittedProblemIds.has(activeProblem.problemId) : false;
   const editorLanguage = language === "c++" ? "cpp" : language;
 
@@ -227,17 +229,27 @@ export default function MatchPage() {
                 {/* Run Results */}
                 {runResults && (
                   <div className={`mt-4 rounded-lg border p-3 ${runResults.allPassed ? "border-success/30 bg-success/5" : "border-destructive/30 bg-destructive/5"}`}>
-                    <div className="flex items-center gap-2 mb-2">
-                      {runResults.allPassed ? <CheckCircle size={16} className="text-success" /> : <XCircle size={16} className="text-destructive" />}
-                      <span className="text-sm font-semibold">{runResults.passedCount}/{runResults.totalCount} passed</span>
+                    <div className="flex items-center gap-2 mb-3">
+                      {runResults.allPassed ? <CheckCircle size={18} className="text-success" /> : <XCircle size={18} className="text-destructive" />}
+                      <span className="font-semibold">{runResults.passedCount}/{runResults.totalCount} passed</span>
                     </div>
-                    {runResults.results?.map((r: any, i: number) => (
-                      <div key={i} className={`mt-1 rounded border p-2 text-xs ${r.passed ? "border-success/20 bg-white" : "border-destructive/20 bg-white"}`}>
-                        <span className={r.passed ? "text-success" : "text-destructive"}>Test {i + 1}: {r.passed ? "PASS" : "FAIL"}</span>
-                        {!r.passed && r.actualOutput && <div className="mt-1 text-muted-foreground">Got: {r.actualOutput}</div>}
-                        {r.error && <div className="mt-1 text-destructive">{r.error}</div>}
-                      </div>
-                    ))}
+                    <div className="space-y-3">
+                      {runResults.results?.map((r: any, i: number) => (
+                        <div key={i} className={`rounded-lg border p-3 text-xs ${r.passed ? "border-success/30 bg-success/5" : "border-destructive/30 bg-destructive/5"}`}>
+                          <div className="flex items-center gap-2 mb-2 font-medium">
+                            {r.passed ? <CheckCircle size={14} className="text-success" /> : <XCircle size={14} className="text-destructive" />}
+                            <span>Test Case {i + 1}</span>
+                          </div>
+                          <div className="grid grid-cols-2 gap-2">
+                            <div><span className="text-muted-foreground">Input:</span><pre className="mt-1 overflow-x-auto rounded bg-white p-2 text-foreground">{r.input || "(none)"}</pre></div>
+                            <div><span className="text-muted-foreground">Expected:</span><pre className="mt-1 overflow-x-auto rounded bg-success/10 p-2 text-success">{r.expectedOutput}</pre></div>
+                          </div>
+                          {!r.passed && (
+                            <div className="mt-2"><span className="text-muted-foreground">Got:</span><pre className="mt-1 overflow-x-auto rounded bg-white p-2 text-destructive">{r.actualOutput || "(no output)"}</pre></div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 )}
               </div>
