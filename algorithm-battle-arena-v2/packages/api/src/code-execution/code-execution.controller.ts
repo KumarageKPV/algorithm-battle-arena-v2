@@ -24,7 +24,7 @@ export class CodeExecutionController {
   async runCode(
     @Body() body: { code: string; language: string; stdin?: string; timeoutSec?: number },
   ) {
-    if (!body.code || !body.language) {
+    if (body.code == null || !body.language) {
       throw new BadRequestException('code and language are required');
     }
 
@@ -49,7 +49,7 @@ export class CodeExecutionController {
       testCases: Array<{ inputData: string; expectedOutput: string }>;
     },
   ) {
-    if (!body.code || !body.language) {
+    if (body.code == null || !body.language) {
       throw new BadRequestException('code and language are required');
     }
     if (!body.testCases || !Array.isArray(body.testCases) || body.testCases.length === 0) {

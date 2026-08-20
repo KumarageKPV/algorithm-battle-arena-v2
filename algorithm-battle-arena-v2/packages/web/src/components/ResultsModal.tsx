@@ -2,7 +2,7 @@
 import { X, CheckCircle, XCircle, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-interface TestResult { passed: boolean; input: string; expectedOutput: string; actualOutput: string; executionTime: number; error?: string | null; timedOut?: boolean; }
+interface TestResult { passed: boolean; input: string; expectedOutput: string; actualOutput: string; executionTime: number; isHidden?: boolean; }
 interface Props { isOpen: boolean; onClose: () => void; results: { score: number; passedCount: number; totalCount: number; results: TestResult[]; error?: string } | null; onSubmitAgain?: () => void; }
 
 export default function ResultsModal({ isOpen, onClose, results, onSubmitAgain }: Props) {
@@ -43,16 +43,20 @@ export default function ResultsModal({ isOpen, onClose, results, onSubmitAgain }
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-2">
                       {r.passed ? <CheckCircle className="h-5 w-5 text-success" /> : <XCircle className="h-5 w-5 text-destructive" />}
-                      <span className="font-medium">Test Case {i + 1}</span>
+                      <span className="font-medium">Test Case {i + 1} {r.isHidden && <span className="text-muted-foreground font-normal ml-1">(Hidden)</span>}</span>
                     </div>
                     <div className="flex items-center gap-1 text-xs text-muted-foreground"><Clock size={12} />{r.executionTime}ms</div>
                   </div>
-                  <div className="grid grid-cols-2 gap-2 text-xs">
-                    <div><span className="text-muted-foreground">Input:</span><pre className="mt-1 overflow-x-auto rounded bg-white p-2 text-foreground">{r.input || "(none)"}</pre></div>
-                    <div><span className="text-muted-foreground">Expected:</span><pre className="mt-1 overflow-x-auto rounded bg-success/10 p-2 text-success">{r.expectedOutput}</pre></div>
-                  </div>
-                  {!r.passed && (
-                    <div className="mt-2 text-xs"><span className="text-muted-foreground">Got:</span><pre className="mt-1 overflow-x-auto rounded bg-white p-2 text-destructive">{r.error || r.actualOutput || "(no output)"}</pre></div>
+                  {!r.isHidden && (
+                    <>
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        <div><span className="text-muted-foreground">Input:</span><pre className="mt-1 overflow-x-auto rounded bg-white p-2 text-foreground">{r.input || "(none)"}</pre></div>
+                        <div><span className="text-muted-foreground">Expected:</span><pre className="mt-1 overflow-x-auto rounded bg-success/10 p-2 text-success">{r.expectedOutput}</pre></div>
+                      </div>
+                      {!r.passed && (
+                        <div className="mt-2 text-xs"><span className="text-muted-foreground">Got:</span><pre className="mt-1 overflow-x-auto rounded bg-white p-2 text-destructive">{r.actualOutput || "(no output)"}</pre></div>
+                      )}
+                    </>
                   )}
                 </div>
               ))}

@@ -1,4 +1,4 @@
-﻿import { Test, TestingModule } from '@nestjs/testing';
+import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
 import { CodeExecutionService } from '../code-execution.service';
 
@@ -139,6 +139,22 @@ describe('CodeExecutionService', () => {
         expect.any(Object),
       );
     });
+
+    it('should send correct language ID for JavaScript / Node.js', async () => {
+      mockedAxios.post.mockResolvedValue({
+        data: { token: 'abc123' },
+      });
+      mockedAxios.get.mockResolvedValue({
+        data: { status: { id: 3, description: 'Accepted' }, stdout: '', time: '0' },
+      });
+
+      await service.executeCode('console.log(1)', 'javascript', '');
+      expect(mockedAxios.post).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({ language_id: 63 }),
+        expect.any(Object),
+      );
+    });
   });
 
   describe('runTestCases', () => {
@@ -158,6 +174,22 @@ describe('CodeExecutionService', () => {
       expect(result.score).toBe(100);
       expect(result.passedCount).toBe(2);
       expect(result.totalCount).toBe(2);
+    });
+
+    it('should score 100% with CRLF Windows line endings normalized against LF output', async () => {
+      mockedAxios.post.mockResolvedValue({
+        data: { token: 'abc123' },
+      });
+      mockedAxios.get.mockResolvedValue({
+        data: { status: { id: 3 }, stdout: Buffer.from('42\n100\n').toString('base64'), time: '0.01' },
+      });
+
+      const result = await service.runTestCases('code', 'python', [
+        { inputData: '1', expectedOutput: '42\r\n100\r\n' },
+      ]);
+
+      expect(result.score).toBe(100);
+      expect(result.passedCount).toBe(1);
     });
 
     it('should score 50% when half test cases pass', async () => {

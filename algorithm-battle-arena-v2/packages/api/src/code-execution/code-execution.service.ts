@@ -1,4 +1,4 @@
-﻿import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import axios from 'axios';
 
@@ -8,9 +8,16 @@ const LANGUAGE_IDS: Record<string, number> = {
   gcc: 50,
   python: 71,
   python3: 71,
+  py: 71,
   java: 62,
   'c++': 54,
   cpp: 54,
+  javascript: 63,
+  js: 63,
+  node: 63,
+  nodejs: 63,
+  typescript: 74,
+  ts: 74,
 };
 
 export interface ExecutionResult {
@@ -46,10 +53,25 @@ export class CodeExecutionService {
     this.pollIntervalMs = Number(this.configService.get<string>('JUDGE0_POLL_INTERVAL_MS') || 500);
   }
 
+  /**
+   * Normalizes test case output by replacing CRLF with LF and trimming whitespace on each line.
+   */
+  private normalizeOutput(value: string | null | undefined): string {
+    if (!value) return '';
+    return value
+      .replace(/\r\n/g, '\n')
+      .replace(/\r/g, '\n')
+      .split('\n')
+      .map((line) => line.trimEnd())
+      .join('\n')
+      .trim();
+  }
+
   async executeCode(
     code: string, language: string, stdin: string, timeoutSec = 5,
   ): Promise<ExecutionResult> {
-    const languageId = LANGUAGE_IDS[language.toLowerCase()];
+    const normalizedLang = (language || '').toLowerCase().trim();
+    const languageId = LANGUAGE_IDS[normalizedLang];
     if (!languageId) {
       return {
         success: false,
@@ -120,7 +142,9 @@ export class CodeExecutionService {
     for (let i = 0; i < testCases.length; i++) {
       const tc = testCases[i];
       const execResult = await this.executeCode(code, language, tc.inputData);
-      const passed = execResult.success && execResult.output.trim() === (tc.expectedOutput || '').trim();
+      const normalizedActual = this.normalizeOutput(execResult.output);
+      const normalizedExpected = this.normalizeOutput(tc.expectedOutput);
+      const passed = execResult.success && normalizedActual === normalizedExpected;
       if (passed) passedCount++;
 
       results.push({

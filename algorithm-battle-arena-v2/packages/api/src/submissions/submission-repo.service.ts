@@ -1,4 +1,4 @@
-﻿import { BadRequestException, ConflictException, Injectable } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CodeExecutionService } from '../code-execution/code-execution.service';
 
@@ -42,12 +42,14 @@ export class SubmissionRepoService {
     const testCases = (problem?.testCases ?? []).map((tc) => ({
       inputData: tc.inputData ?? '',
       expectedOutput: tc.expectedOutput ?? '',
+      isSample: tc.isSample ?? false,
     }));
     if (testCases.length === 0) {
       throw new BadRequestException('Problem has no test cases.');
     }
 
     const run = await this.codeExecution.runTestCases(data.code, data.language, testCases);
+    const overallStatus = run.allPassed ? 'Accepted' : (run.testCaseResults.find((r: any) => !r.passed)?.status || 'Failed');
     const submission = await this.prisma.submission.create({
       data: {
         matchId: data.matchId,
@@ -55,7 +57,7 @@ export class SubmissionRepoService {
         participantEmail: data.participantEmail,
         language: data.language,
         code: data.code,
-        status: data.status,
+        status: overallStatus,
         score: run.score,
       },
     });
@@ -64,11 +66,17 @@ export class SubmissionRepoService {
       score: run.score,
       passedCount: run.passedCount,
       totalCount: run.totalCount,
-      results: run.testCaseResults.map((r: any, index: number) => ({
-        ...r,
-        input: testCases[index]?.inputData ?? '',
-        expectedOutput: testCases[index]?.expectedOutput ?? r.expectedOutput,
-      })),
+      results: run.testCaseResults.map((r: any, index: number) => {
+        const isSample = testCases[index]?.isSample;
+        return {
+          passed: r.passed,
+          executionTime: r.executionTime,
+          isHidden: !isSample,
+          input: isSample ? (testCases[index]?.inputData ?? '') : 'Hidden',
+          expectedOutput: isSample ? (testCases[index]?.expectedOutput ?? r.expectedOutput) : 'Hidden',
+          actualOutput: isSample ? r.actualOutput : 'Hidden',
+        };
+      }),
     };
   }
 

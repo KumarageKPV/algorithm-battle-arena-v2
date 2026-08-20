@@ -15,7 +15,6 @@ export class CreateSubmissionDto {
   language!: string;
 
   @IsString()
-  @IsNotEmpty()
   code!: string;
 
   @IsOptional()
